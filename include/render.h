@@ -4,7 +4,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
-#include "cgame.h"
+#include "game.h"
 
 #define GRID_SIZE 4
 #define MAX_NAME_LEN 20
