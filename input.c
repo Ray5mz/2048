@@ -1,16 +1,19 @@
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_keycode.h>
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include "include/input.h"
 #include "include/render.h"
-#include "include/game.h"
+#include "include/cgame.h"
 
 extern int game_is_running;
 extern GameState currentState;
 extern int mouseX;
 extern int mouseY;
 extern int selectedButton;
+extern char *ply_name; // Ensure ply_name is declared as an external variable
 
 void return_back() {
     if (currentState != WELCOME_PAGE && currentState != MAIN_MENU) {
@@ -19,7 +22,7 @@ void return_back() {
     }
 }
 
-void process_input() {
+void process_input(Game* game) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) {
@@ -57,6 +60,25 @@ void process_input() {
                         return_back();
                         break;
                 }
+				    } else if (currentState == GAME_PAGE){
+                  switch (event.key.keysym.sym) {
+                    case SDLK_RIGHT:
+                        game->action = A_MOVE_RIGHT;
+                        break;
+                    case SDLK_LEFT:
+                        game->action = A_MOVE_LEFT;
+                        break;
+                    case SDLK_DOWN:
+                        game->action = A_MOVE_DOWN;
+                        break;
+                    case SDLK_UP:
+                        game->action = A_MOVE_UP;
+                        break;
+                    case SDLK_ESCAPE:
+                        return_back();
+                        break;
+                }            
+				       
             } else {
                 // Handle ESC key to return to the main menu
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
@@ -64,8 +86,8 @@ void process_input() {
                 }
             }
         } else if (event.type == SDL_MOUSEMOTION) {
-            mouseX = event.button.x;
-            mouseY = event.button.y;
+            mouseX = event.motion.x;
+            mouseY = event.motion.y;
         } else if (event.type == SDL_MOUSEBUTTONDOWN) {
             switch (currentState) {
                 case WELCOME_PAGE:
@@ -76,8 +98,9 @@ void process_input() {
                     handleMainMenuEvent(&event); // New function for the main menu
                     break;
                 case GAME_PAGE:
-                    handleGamePageEvent(&event); // Placeholder for future
-                    break;
+					          initialize_game(game); // Initialize the game when transitioning to the game page
+                    handleGamePageEvent(game); // Use the game variabl 
+                      break;
                 case SCORE_PAGE:
                     handleScorePageEvent(&event); // Placeholder for future
                     break;
@@ -135,40 +158,27 @@ void handleMainMenuEvent(SDL_Event* event) {
     }
 }
 
-void handleGamePageEvent(SDL_Event* event) {
-    static SDL_Point target_pos = {0, 0};
-    static int dragging = 0;
-
-    if (event->type == SDL_MOUSEBUTTONDOWN) {
-        int x = event->button.x;
-        int y = event->button.y;
-
-        for (int row = 0; row < GRID_SIZE; row++) {
-            for (int col = 0; col < GRID_SIZE; col++) {
-                Tile* tile = &grid[row][col];
-                if (SDL_PointInRect(&(SDL_Point){x, y}, &tile->rect)) {
-                    dragging_tile = tile;
-                    dragging_tile->is_dragging = 1;
-                    target_pos.x = x - TILE_SIZE / 2;
-                    target_pos.y = y - TILE_SIZE / 2;
-                    dragging = 1;
-                    return;
-                }
-            }
+void handleGamePageEvent(Game* game) {
+    // No need to poll for events here since we already have the event in process_input
+    if (currentState == GAME_PAGE) {
+        switch (game->action) {
+            case A_MOVE_RIGHT:
+                move_right(game);
+                break;
+            case A_MOVE_LEFT:
+                move_left(game);
+                break;
+            case A_MOVE_DOWN:
+                move_down(game);
+                break;
+            case A_MOVE_UP:
+                move_up(game);
+                break;
+            default:
+                break;
         }
-    } else if (event->type == SDL_MOUSEMOTION && dragging) {
-        if (dragging_tile) {
-            target_pos.x = event->motion.x - TILE_SIZE / 2;
-            target_pos.y = event->motion.y - TILE_SIZE / 2;
-        }
-    } else if (event->type == SDL_MOUSEBUTTONUP && dragging) {
-        dragging_tile->is_dragging = 0;
-        dragging = 0;
-        dragging_tile = NULL;
-    }
-
-    if (dragging) {
-        dragging_tile->rect.x += (target_pos.x - dragging_tile->rect.x) * 0.1f;
-        dragging_tile->rect.y += (target_pos.y - dragging_tile->rect.y) * 0.1f;
     }
 }
+void handleScorePageEvent(SDL_Event* event){}
+void handleMachinePageEvent(SDL_Event* event){}
+void handlePlayerVSMachineEvent(SDL_Event* event){}
