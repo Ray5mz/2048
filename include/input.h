@@ -5,7 +5,7 @@
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include "render.h"
-#include "cgame.h"
+#include "game.h"
 #include "utils.h"
 
 #define FALSE 0
