@@ -4,20 +4,24 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
+#include "cgame.h"
 
+#define GRID_SIZE 4
+#define MAX_NAME_LEN 20
 #define FALSE 0
 #define TRUE 1
+
 typedef enum {
     WELCOME_PAGE,
     MAIN_MENU,
-		MACHINE_PAGE,
-		SCORE_PAGE,
-		GAME_PAGE,
-		PLAYERVSMACHINE_PAGE
+    MACHINE_PAGE,
+    SCORE_PAGE,
+    GAME_PAGE,
+    PLAYERVSMACHINE_PAGE
 } GameState;
 
 extern int selectedButton;
-extern int mouseX,mouseY;
+extern int mouseX, mouseY;
 extern GameState currentState;
 extern SDL_Renderer* renderer;
 extern TTF_Font* largeFont;
@@ -28,23 +32,29 @@ extern SDL_Texture* startTextTexture;
 extern int is_welcome_page;
 extern int game_is_running;
 extern bool isHovered;
-extern void initialize_game();
+extern void initialize_game(Game* game);
 
-extern void render_grid(SDL_Renderer* renderer, int window_width,int window_height);
-extern void render_rounded_rect(SDL_Renderer* renderer, SDL_Rect* rect, int radius);
-extern void handle_tile_drag(SDL_Event* event);
+extern void render_grid(SDL_Renderer* renderer, int window_width, int window_height, Game* game);
+
+extern void transition_to_main_menu();
+extern void welcome_page();
+extern void loadMenuTextures();
+extern void renderMainMenu();
+extern void cleanupMenuTextures();
+extern char* render_name_input(char *name);
+void renderGamePage(Game* game);
+void renderPlayerVSMachine(Game* game);
+extern void renderMachinePage();
+extern void renderScorePage();
 
 int initialize_window(void);
-void render();
+void render(Game* game);
 void transition_to_main_menu();
 void welcome_page();
 void loadMenuTextures();
 void renderMainMenu();
 void cleanupMenuTextures();
 
-void renderGamePage();
-void renderPlayerVSMachine();
 void renderMachinePage();
 void renderScorePage();
-
 #endif
