@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include "include/input.h"
 #include "include/render.h"
-#include "include/cgame.h"
+#include "include/game.h"
 
 extern int game_is_running;
 extern GameState currentState;
