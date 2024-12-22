@@ -2,7 +2,8 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include "include/render.h"
-#include "include/game.h"
+#include "include/cgame.h"
+#include "include/input.h"
 
 // Define colors
 SDL_Color white = {255, 255, 255, 255};
@@ -165,7 +166,7 @@ int initialize_window(void) {
     }
 
     // Load the font with a large size for better quality
-    TTF_Font* largeFont = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 128);
+    largeFont = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 128);
     if (!largeFont) {
         printf("Error loading font: %s\n", TTF_GetError());
         SDL_DestroyRenderer(renderer);
@@ -175,9 +176,11 @@ int initialize_window(void) {
         return FALSE;
     }
 
-    TTF_Font* smallFont = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48);
+    // Load the font with a small size for better quality
+    smallFont = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48);
     if (!smallFont) {
         printf("Error loading font: %s\n", TTF_GetError());
+        TTF_CloseFont(largeFont);
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
         TTF_Quit();
@@ -219,7 +222,7 @@ int initialize_window(void) {
     return TRUE;
 }
 
-void render() {
+void render(Game* game) {
     // Clear the screen with a purple color
     SDL_SetRenderDrawColor(renderer, 164, 38, 232, 255);
     SDL_RenderClear(renderer);
@@ -260,13 +263,13 @@ void render() {
             renderMainMenu();
             break;
         case GAME_PAGE:
-            renderGamePage();
+            renderGamePage(game);
             break;
         case MACHINE_PAGE:
             renderMachinePage();
             break;
         case PLAYERVSMACHINE_PAGE:
-            renderPlayerVSMachine();
+            renderPlayerVSMachine(game);
             break;
         case SCORE_PAGE:
             renderScorePage();
@@ -276,20 +279,88 @@ void render() {
     SDL_RenderPresent(renderer);
 }
 
-void renderGamePage() {
+char* render_name_input(char* name) {
+    // Load the font
+    TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 72);
+    if (!font) {
+        printf("Error loading font: %s\n", TTF_GetError());
+        return NULL;
+    }
+
+    SDL_Color bg_color = {0, 0, 0, 200};  // Semi-transparent black for input box
+    SDL_Color text_color = {255, 255, 255, 255};
+
+    SDL_Rect input_box = {200, 150, 400, 100};  // Input box size and position
+    char user_input[MAX_NAME_LEN + 1] = "";     // Input buffer
+    int input_len = 0;
+    bool input_active = true;
+
+    SDL_StartTextInput();  // Start text input mode
+
+    // Main event loop
+    SDL_Event event;
+    while (input_active) {
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_QUIT) {
+                input_active = false;
+                break;
+            } else if (event.type == SDL_KEYDOWN) {
+                if (event.key.keysym.sym == SDLK_RETURN) {  // Confirm input
+                    input_active = false;
+                    strncpy(name, user_input, MAX_NAME_LEN);
+                    name[MAX_NAME_LEN] = '\0';  // Null-terminate
+                } else if (event.key.keysym.sym == SDLK_BACKSPACE && input_len > 0) {
+                    user_input[--input_len] = '\0';  // Remove last character
+                }
+            } else if (event.type == SDL_TEXTINPUT) {
+                if (input_len < MAX_NAME_LEN) {
+                    strcat(user_input, event.text.text);  // Append input
+                    input_len += strlen(event.text.text);
+                }
+            }
+        }
+
+        // Clear the screen
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+        SDL_RenderClear(renderer);
+
+        // Draw the input box
+        SDL_SetRenderDrawColor(renderer, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
+        SDL_RenderFillRect(renderer, &input_box);
+
+        // Render the user input text
+        SDL_Surface* text_surface = TTF_RenderText_Solid(font, user_input, text_color);
+        if (text_surface) {
+            SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
+            SDL_Rect text_rect = {input_box.x + 10, input_box.y + 25, text_surface->w, text_surface->h};
+            SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
+
+            SDL_DestroyTexture(text_texture);
+            SDL_FreeSurface(text_surface);
+        }
+
+        // Update the screen
+        SDL_RenderPresent(renderer);
+    }
+
+    SDL_StopTextInput();  // Stop text input mode
+    TTF_CloseFont(font);  // Clean up the font
+    return name;
+}
+
+void renderGamePage(Game* game) {
     int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
-    initialize_game();
-    render_grid(renderer, window_width, window_height);
+    update(game, 0.016); // Update the game state
+    render_thegrid(renderer, window_width, window_height, game);
 }
 
 void renderMachinePage() {}
 
-void renderPlayerVSMachine() {
+void renderPlayerVSMachine(Game* game) {
     int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
-    initialize_game();
-    render_grid(renderer, window_width, window_height);
+    render_thegrid(renderer, window_width, window_height, game);
 }
 
 void renderScorePage() {
@@ -345,6 +416,4 @@ void renderScorePage() {
     TTF_CloseFont(scoreFont);
 }
 
-void handleScorePageEvent(SDL_Event* event) {}
-void handleMachinePageEvent(SDL_Event* event) {}
-void handlePlayerVSMachineEvent(SDL_Event* event) {}
+
