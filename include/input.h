@@ -5,7 +5,9 @@
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include "render.h"
-#include "game.h"
+#include "cgame.h"
+#include "utils.h"
+
 #define FALSE 0
 #define TRUE 1
 
@@ -16,13 +18,15 @@ extern int mouseY;
 extern GameState currentState;
 extern int selectedButton;
 extern bool isHovered;
+extern char *ply_name;
+extern int score;
 
 void return_back();
 void handleMainMenuEvent(SDL_Event* event);
-void handleGamePageEvent(SDL_Event* event);
+void handleGamePageEvent(Game* game);
 void handleScorePageEvent(SDL_Event* event);
 void handleMachinePageEvent(SDL_Event* event);
 void handlePlayerVSMachineEvent(SDL_Event* event);
-void process_input();
+void process_input(Game* game);
 
-#endif
+#endif // INPUT_H
