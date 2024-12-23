@@ -13,27 +13,30 @@ extern GameState currentState;
 extern int mouseX;
 extern int mouseY;
 extern int selectedButton;
-extern char *ply_name; // Ensure ply_name is declared as an external variable
+extern char *ply_name; 
 
+
+// i made this so we can be able to return to the main menu by clicling esc
 void return_back() {
     if (currentState != WELCOME_PAGE && currentState != MAIN_MENU) {
         currentState = MAIN_MENU;
-        loadMenuTextures(); // Load menu textures when transitioning to the main menu
+        loadMenuTextures();
     }
 }
 
+//now this is the most important part
 void process_input(Game* game) {
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
-            game_is_running = FALSE; // Stop the game loop
+            game_is_running = FALSE; // Stop the game if we precc on the little X button at the top of the window on the irght
         } else if (event.type == SDL_KEYDOWN) {
             if (currentState == WELCOME_PAGE) {
                 // Any key press transitions to the main menu
                 currentState = MAIN_MENU;
                 loadMenuTextures(); // Load menu textures when transitioning to the main menu
-            } else if (currentState == MAIN_MENU) {
+            } else if (currentState == MAIN_MENU) { // in the main muenu i wanted to do this so we can control it using the keyboard
                 // Handle specific key presses for main menu navigation
                 switch (event.key.keysym.sym) {
                     case SDLK_UP:
@@ -60,7 +63,7 @@ void process_input(Game* game) {
                         return_back();
                         break;
                 }
-				    } else if (currentState == GAME_PAGE){
+				    } else if (currentState == GAME_PAGE){// in here we track the inout of the kaybaord so we can link the function of the movements that i put in game.c
                   switch (event.key.keysym.sym) {
                     case SDLK_RIGHT:
                         game->action = A_MOVE_RIGHT;
@@ -115,6 +118,7 @@ void process_input(Game* game) {
     }
 }
 
+//this is for the uttons of the main menu, it can take to keyboard or the mouse as an input
 void handleMainMenuEvent(SDL_Event* event) {
     if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
         // Retrieve mouse position
