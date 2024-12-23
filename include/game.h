@@ -7,7 +7,7 @@
 #define GRID_SIZE 4
 #define TILE_SIZE 100
 #define GAP 10
-#define MAX_SCORES 5
+#define MAX_SCORES 5 //this is for the maximum score that can be saved
 
 typedef enum {
     A_NONE,
@@ -23,7 +23,7 @@ typedef enum {
     GS_WON,
 } GameStates;
 
-typedef struct {
+typedef struct {  //this has evrything we need concerning the Gameplay
     int board[4 * 4];
     GameStates state;
     Actions action;
