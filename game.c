@@ -1,10 +1,11 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
-#include <math.h> // Include the math header
+#include <math.h> 
 #include "include/game.h"
 #include "include/utils.h"
 #include "include/input.h"
+
 // Function to draw a rounded rectangle
 void render_rounded_rect(SDL_Renderer* renderer, SDL_Rect* rect, int radius) {
     int x = rect->x;
@@ -99,7 +100,8 @@ void render_thegrid(SDL_Renderer* renderer, int window_width, int window_height,
     }
 }
 
-void initialize_game(Game* game) {
+
+void initialize_game(Game* game) { // this is for when the user start playing, if we dont use this we would just have an empty  grid
     // Initialize the game state
     game->state = GS_PLAYING;
     game->action = A_NONE;
@@ -148,7 +150,7 @@ bool has_lost(Game* game) {
     return true;
 }
 
-int empty_tiles(Game* game) {
+int empty_tiles(Game* game) { // this is used for the next function, its jsut return the number of empty tiles
     int amount = 0;
     for (int y = 0; y < GRID_SIZE; y++) {
         for (int x = 0; x < GRID_SIZE; x++) {
@@ -160,7 +162,11 @@ int empty_tiles(Game* game) {
     return amount;
 }
 
-bool move_cell_maybe_break(Game* game, int* target, int* src) {
+
+//ok so this is the function that i was talking about, and it is VERY important because with this we are anle to veriy if the numbers can slide and take a tile if it is empty
+// target is the tile that the number is about to take, and src is the where the number is currently in the grid
+// also this function marges two numbers if hey are the same and count the score as well
+bool move_cell_maybe_break(Game* game, int* target, int* src) { 
     if (*target == 0 && *src != 0) {
         *target = *src;
         *src = 0;
@@ -177,6 +183,8 @@ bool move_cell_maybe_break(Game* game, int* target, int* src) {
     return false;
 }
 
+
+//MOVEMENTS
 void move_right(Game* game) {
     for (int y = 0; y < GRID_SIZE; y++) {
         for (int ix = GRID_SIZE - 1; ix >= 0; ix--) {
@@ -225,6 +233,8 @@ void move_up(Game* game) {
     }
 }
 
+//This function is important as well because it updates the image for each frame, and we can decide if its updating it every second or every 0.5 seconds ect... 
+// with some calcul we can set the time of the update to obtain 30 fps for example
 void update(Game* game, double delta) {
     if (game->state == GS_PLAYING) {
         game->has_moved = false;
