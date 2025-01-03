@@ -4,7 +4,81 @@
 #include "include/render.h"
 #include "include/game.h"
 #include "include/input.h"
+#include <time.h>
 
+#define FPS 120
+#define FRAME_TARGET_TIME (1000 / FPS) // How many frames in milliseconds
+
+#define MAX_BALLS 30
+
+struct ball {
+    float x, y;
+    float width, height;
+    float vx, vy; // Velocity components
+    Uint8 alpha; // Alpha value for transparency
+	 float ax, ay; 
+};
+
+int last_frame_time = 0;
+struct ball balls[MAX_BALLS];
+int ball_count = 0;
+
+
+void setup_balls() {
+    srand(time(NULL)); // Initialize random number generator (do this once in your program, not every time)
+    int window_width, window_height;
+    SDL_GetWindowSize(window, &window_width, &window_height);
+
+    // Define game boundaries or range for random values
+    int max_x = window_width; // Replace with your game width
+    int max_y = 50; // Replace with your game height
+
+    // Generate random positions and velocities for each ball
+    for (int i = 0; i < MAX_BALLS; i++) {
+        balls[i].x = rand() % max_x;
+        balls[i].y = rand() % max_y;
+        balls[i].width = 28;
+        balls[i].height = 28;
+        //balls[i].vx = (rand() % 200 - 100) * 0.1; // Random velocity in x direction
+        balls[i].vy = (rand() % 200 - 100) * 0.1; // Random velocity in y direction
+        balls[i].ax = 0; // No acceleration in x direction
+        balls[i].ay = 0.05; // Constant acceleration in y direction (gravity)
+        balls[i].alpha = 130; // Set initial alpha value for transparency
+        ball_count++;
+    }
+}
+
+void update_balls() {
+    float delta_time = (SDL_GetTicks() - last_frame_time) / 1000.0f; // delta time is used to think in pixels per second and not pixels per frame
+    last_frame_time = SDL_GetTicks(); // this function let us know how many milliseconds have passed since the start of our SDL initialization in SDL_INIT
+    int time_to_sleep = FRAME_TARGET_TIME - (SDL_GetTicks() - last_frame_time);
+
+    if (time_to_sleep > 0 && time_to_sleep <= FRAME_TARGET_TIME) {
+        SDL_Delay(time_to_sleep); // call only if we are too fast to process this frame, it would let the processor do what it has to do and call for its interruption to resume the execution
+    }
+
+    for (int i = 0; i < ball_count; i++) {
+        // Update velocity with acceleration
+        //balls[i].vx += balls[i].ax * delta_time;
+        //balls[i].vy += balls[i].ay * delta_time;
+
+        // Update position with velocity
+        //balls[i].x += 70 * delta_time;
+        balls[i].y += 30 * delta_time;
+
+        // Ensure the ball stays within the window bounds
+        int window_width, window_height;
+        SDL_GetWindowSize(window, &window_width, &window_height);
+        //if (balls[i].x < 0) balls[i].x = 0;
+        //if (balls[i].x > window_width - balls[i].width) balls[i].x = window_width - balls[i].width;
+        if (balls[i].y < 0) balls[i].y = 0;
+        if (balls[i].y > window_height - balls[i].height) balls[i].y = window_height - balls[i].height;
+
+        // Apply damping to velocity to smooth the movement
+        //balls[i].vx *= 0.99;
+        balls[i].vy *= 0.99;
+    }
+}
 // Define colors
 SDL_Color white = {255, 255, 255, 255};
 SDL_Color buttonColor = {70, 70, 70, 255};
@@ -63,7 +137,7 @@ void renderMainMenu() {
     int windowWidth, windowHeight;
     SDL_GetWindowSize(window, &windowWidth, &windowHeight);
 
-    int textWidth, textHeight;
+    int textWidth = 0, textHeight = 0;
     SDL_QueryTexture(titleTexture, NULL, NULL, &textWidth, &textHeight);
     SDL_Rect titleRect = {
         (windowWidth - textWidth) / 2,
@@ -219,13 +293,31 @@ int initialize_window(void) {
     startTextTexture = SDL_CreateTextureFromSurface(renderer, startTextSurface);
     SDL_FreeSurface(startTextSurface);
 
+    // Initialize the balls
+    setup_balls();
+
     return TRUE;
 }
 
 void render(Game* game) {
-    // Clear the screen with a purple color
-    SDL_SetRenderDrawColor(renderer, 164, 38, 232, 255);
+    // Enable blending
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
+    // Clear the screen with a semi-transparent purple color
+    SDL_SetRenderDrawColor(renderer, 164, 38, 232, 128);
     SDL_RenderClear(renderer);
+
+    // Render the balls
+    for (int i = 0; i < ball_count; i++) {
+        SDL_Rect ball_rect = {
+            (int)balls[i].x,
+            (int)balls[i].y,
+            (int)balls[i].width,
+            (int)balls[i].height
+        };
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, balls[i].alpha);
+        SDL_RenderFillRect(renderer, &ball_rect);
+    }
 
     // Get window size for centering the text
     switch (currentState) {
@@ -348,12 +440,50 @@ char* render_name_input(char* name) {
     return name;
 }
 
+
 void renderGamePage(Game* game) {
     int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
-    update(game, 0.016); // Update the game state
+
+    // Update the game state
+    update(game, 0.016);
+
+    // Render the game grid
     render_thegrid(renderer, window_width, window_height, game);
-}
+
+    // Check if the player has lost and render the splash screen if necessary
+    if (has_lost(game)) {
+        SDL_Color bgColor = {255, 0, 0, 200}; // Red background, 200 alpha for semi-transparency
+        render_splash_screen(renderer, "You Have Lost", bgColor);
+        game->state = GS_LOST;
+    } else if (has_won(game)) { // Optionally handle a "win" state
+        SDL_Color bgColor = {0, 255, 0, 200}; // Green background, 200 alpha for semi-transparency
+        render_splash_screen(renderer, "You Have Won", bgColor);
+        game->state = GS_WON;
+    }
+    SDL_Event event;
+    // Check if the game is won or lost
+    if (game->state == GS_WON || game->state == GS_LOST) {
+        // Poll for events to detect a space bar press
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) { // Detect space bar
+				      printf("so yeah basically the space ar is detected \n");
+                if (highScoreBoard.count < MAX_HIGH_SCORES || 
+                    game->score > highScoreBoard.highScores[MAX_HIGH_SCORES - 1].score) {
+                    // Call ask_for_player_name when space bar is pressed
+                    char playerName[MAX_NAME_LENGTH];
+                    ask_for_player_name(game, playerName);
+                    add_high_score(playerName, game->score);
+                }
+
+                // Transition to SCORE_PAGE after handling high score
+                currentState = SCORE_PAGE;
+                break; // Exit event polling after handling
+            }
+        }
+    }
+
+    }
 
 void renderMachinePage() {}
 
@@ -363,15 +493,35 @@ void renderPlayerVSMachine(Game* game) {
     render_thegrid(renderer, window_width, window_height, game);
 }
 
+
+
+
+
 void renderScorePage() {
-    // Load the font for the score title
-    TTF_Font* scoreFont = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 72);
-    if (!scoreFont) {
-        printf("Error loading fonts: %s\n", TTF_GetError());
+    // Check renderer and window
+    if (!renderer) {
+        printf("Error: Renderer is NULL\n");
         return;
     }
 
-    // Create the surface for the score title
+    if (!window) {
+        printf("Error: Window is NULL\n");
+        return;
+    }
+
+    if (highScoreBoard.count < 0 || highScoreBoard.count > MAX_HIGH_SCORES) {
+        printf("Error: Invalid highScoreBoard.count (%d)\n", highScoreBoard.count);
+        return;
+    }
+
+    // Load the font for the score title
+    TTF_Font* scoreFont = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 72);
+    if (!scoreFont) {
+        printf("Error loading font: %s\n", TTF_GetError());
+        return;
+    }
+
+    // Render the title "SCORE"
     SDL_Surface* scoreTextSurface = TTF_RenderText_Blended(scoreFont, "SCORE", white);
     if (!scoreTextSurface) {
         printf("Error creating score text surface: %s\n", TTF_GetError());
@@ -379,9 +529,8 @@ void renderScorePage() {
         return;
     }
 
-    // Create the texture from the surface
     SDL_Texture* scoreTexture = SDL_CreateTextureFromSurface(renderer, scoreTextSurface);
-    SDL_FreeSurface(scoreTextSurface);  // Free the surface after creating the texture
+    SDL_FreeSurface(scoreTextSurface); // Free the surface after creating the texture
     if (!scoreTexture) {
         printf("Error creating score texture: %s\n", SDL_GetError());
         TTF_CloseFont(scoreFont);
@@ -389,18 +538,18 @@ void renderScorePage() {
     }
 
     // Clear the screen with a background color
-    SDL_SetRenderDrawColor(renderer, 107, 107, 223, 255);
+    SDL_SetRenderDrawColor(renderer, 107, 107, 223, 255); // Your specified color
     SDL_RenderClear(renderer);
 
     // Get window dimensions for centering
     int windowWidth, windowHeight;
     SDL_GetWindowSize(window, &windowWidth, &windowHeight);
 
-    // Get the texture's dimensions
+    // Get the dimensions of the score title texture
     int textWidth, textHeight;
     SDL_QueryTexture(scoreTexture, NULL, NULL, &textWidth, &textHeight);
 
-    // Define the rectangle to render the score title
+    // Define the rectangle for rendering the score title
     SDL_Rect titleRect = {
         (windowWidth - textWidth) / 2,  // Center horizontally
         20,                            // Position near the top
@@ -411,9 +560,43 @@ void renderScorePage() {
     // Render the score title
     SDL_RenderCopy(renderer, scoreTexture, NULL, &titleRect);
 
-    // Clean up resources
+    // Free the title texture
     SDL_DestroyTexture(scoreTexture);
-    TTF_CloseFont(scoreFont);
-}
 
+    // Render the high scores
+    int yOffset = 150;
+    for (int i = 0; i < highScoreBoard.count; i++) {
+        char scoreText[64];
+        snprintf(scoreText, sizeof(scoreText), "%d. %s - %d", i + 1, highScoreBoard.highScores[i].name, highScoreBoard.highScores[i].score);
+        printf("HighScore %d: %s - %d\n", i, highScoreBoard.highScores[i].name, highScoreBoard.highScores[i].score);
+
+        SDL_Surface* scoreSurface = TTF_RenderUTF8_Blended(scoreFont, scoreText, white);
+        if (!scoreSurface) {
+            printf("Error creating score surface for high score %d: %s\n", i, TTF_GetError());
+            continue;
+        }
+
+        SDL_Texture* scoreTexture = SDL_CreateTextureFromSurface(renderer, scoreSurface);
+        if (!scoreTexture) {
+            printf("Error creating score texture for high score %d: %s\n", i, SDL_GetError());
+            SDL_FreeSurface(scoreSurface);
+            continue;
+        }
+
+        SDL_Rect scoreRect = {100, yOffset, scoreSurface->w, scoreSurface->h};
+        SDL_RenderCopy(renderer, scoreTexture, NULL, &scoreRect);
+
+        SDL_FreeSurface(scoreSurface);
+        SDL_DestroyTexture(scoreTexture);
+
+        yOffset += 50; // Space between scores
+    }
+
+    // Clean up font
+    TTF_CloseFont(scoreFont);
+
+  
+
+    printf("Rendering Score Page\n");
+}
 
