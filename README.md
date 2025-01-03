@@ -19,3 +19,6 @@ project-root/
 ├── build/              // Directory for compiled binaries and object files (generated after building)
 ├── Makefile            // Build automation: compiles and links files for easy project management
 ``` 
+
+## Command for compilation
+`gcc -g -o "2048v0.2.exe" main.c render.c input.c utils.c cgame.c -I include -lSDL2 -lSDL2_ttf -lSDL2_image -lm`
