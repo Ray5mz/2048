@@ -1,11 +1,10 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
-#include <math.h> 
+#include <math.h> // Include the math header
 #include "include/game.h"
 #include "include/utils.h"
 #include "include/input.h"
-
 // Function to draw a rounded rectangle
 void render_rounded_rect(SDL_Renderer* renderer, SDL_Rect* rect, int radius) {
     int x = rect->x;
@@ -100,8 +99,28 @@ void render_thegrid(SDL_Renderer* renderer, int window_width, int window_height,
     }
 }
 
+void render_score_and_moves(Game* game, SDL_Renderer* renderer)
+{
+	  TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48); 
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    char text[32] = { 0 };
+    snprintf(text, 32, "Score: %d", game->score);
+    SDL_Surface* textSurface = TTF_RenderUTF8_Blended(font, text, (SDL_Color) { 0, 0, 0, 255 });
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    SDL_RenderCopy(renderer, textTexture, NULL, &(SDL_Rect) { 50, 200, 400, 80 });
+    SDL_DestroyTexture(textTexture);
+    SDL_FreeSurface(textSurface);
 
-void initialize_game(Game* game) { // this is for when the user start playing, if we dont use this we would just have an empty  grid
+    snprintf(text, 32, "Moves: %d", game->moves);
+    textSurface = TTF_RenderUTF8_Blended(font, text, (SDL_Color) { 0, 0, 0, 0 });
+    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    SDL_RenderCopy(renderer, textTexture, NULL, &(SDL_Rect) { 50, 280, 400, 80 });
+    SDL_DestroyTexture(textTexture);
+    SDL_FreeSurface(textSurface);
+}
+
+
+void initialize_game(Game* game) {
     // Initialize the game state
     game->state = GS_PLAYING;
     game->action = A_NONE;
@@ -150,7 +169,7 @@ bool has_lost(Game* game) {
     return true;
 }
 
-int empty_tiles(Game* game) { // this is used for the next function, its jsut return the number of empty tiles
+int empty_tiles(Game* game) {
     int amount = 0;
     for (int y = 0; y < GRID_SIZE; y++) {
         for (int x = 0; x < GRID_SIZE; x++) {
@@ -162,11 +181,7 @@ int empty_tiles(Game* game) { // this is used for the next function, its jsut re
     return amount;
 }
 
-
-//ok so this is the function that i was talking about, and it is VERY important because with this we are anle to veriy if the numbers can slide and take a tile if it is empty
-// target is the tile that the number is about to take, and src is the where the number is currently in the grid
-// also this function marges two numbers if hey are the same and count the score as well
-bool move_cell_maybe_break(Game* game, int* target, int* src) { 
+bool move_cell_maybe_break(Game* game, int* target, int* src) {
     if (*target == 0 && *src != 0) {
         *target = *src;
         *src = 0;
@@ -183,8 +198,6 @@ bool move_cell_maybe_break(Game* game, int* target, int* src) {
     return false;
 }
 
-
-//MOVEMENTS
 void move_right(Game* game) {
     for (int y = 0; y < GRID_SIZE; y++) {
         for (int ix = GRID_SIZE - 1; ix >= 0; ix--) {
@@ -233,8 +246,6 @@ void move_up(Game* game) {
     }
 }
 
-//This function is important as well because it updates the image for each frame, and we can decide if its updating it every second or every 0.5 seconds ect... 
-// with some calcul we can set the time of the update to obtain 30 fps for example
 void update(Game* game, double delta) {
     if (game->state == GS_PLAYING) {
         game->has_moved = false;
@@ -259,3 +270,216 @@ void update(Game* game, double delta) {
         }
     }
 }
+
+
+void render_splash_screen(SDL_Renderer* renderer, const char* text, SDL_Color color)
+{
+    // Open the font with a larger size for smoother text
+    TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 96);
+    if (!font) {
+        SDL_Log("Failed to load font: %s", TTF_GetError());
+        return;
+    }
+
+    // Get renderer's output size to calculate the center
+    int screenWidth, screenHeight;
+    SDL_GetRendererOutputSize(renderer, &screenWidth, &screenHeight);
+
+    // Set background color and fill a centered rectangle
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+
+    int rectWidth = 512;
+    int rectHeight = 512;
+    SDL_Rect rect = {
+        (screenWidth - rectWidth) / 2, // Center X
+        (screenHeight - rectHeight) / 2, // Center Y
+        rectWidth,
+        rectHeight
+    };
+    SDL_RenderFillRect(renderer, &rect);
+
+    // Render the text and center it
+    SDL_Surface* textSurface = TTF_RenderUTF8_Blended(font, text, (SDL_Color){ 0, 0, 0, 255 });
+    if (!textSurface) {
+        SDL_Log("Failed to render text: %s", TTF_GetError());
+        TTF_CloseFont(font);
+        return;
+    }
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (!textTexture) {
+        SDL_Log("Failed to create text texture: %s", SDL_GetError());
+        SDL_FreeSurface(textSurface);
+        TTF_CloseFont(font);
+        return;
+    }
+
+    // Center the text inside the rectangle
+    int textWidth = textSurface->w;
+    int textHeight = textSurface->h;
+    SDL_Rect textRect = {
+        rect.x + (rect.w - textWidth) / 2, // Center X
+        rect.y + (rect.h - textHeight) / 2, // Center Y
+        textWidth,
+        textHeight
+    };
+    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+
+    // Clean up
+    SDL_DestroyTexture(textTexture);
+    SDL_FreeSurface(textSurface);
+    TTF_CloseFont(font);
+}
+
+
+
+
+
+//----------------------------------------------------------------------------------SCORE THINGIES--------------------------------------------------------------------------------------\\
+
+
+
+
+void ask_for_player_name(Game* game, char* playerName) {
+    SDL_StartTextInput();
+
+    char input[MAX_NAME_LENGTH] = "";
+    SDL_Event e;
+    bool done = false;
+
+    // Dimensions for the input box
+    int windowWidth, windowHeight;
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+
+    int boxWidth = 400;
+    int boxHeight = 200;
+    SDL_Rect inputBox = {
+        (windowWidth - boxWidth) / 2, // Center horizontally
+        (windowHeight - boxHeight) / 2, // Center vertically
+        boxWidth,
+        boxHeight
+    };
+
+    // Colors
+    SDL_Color backgroundColor = {30, 30, 30, 255}; // Dark gray
+    SDL_Color borderColor = {200, 200, 200, 255};  // Light gray
+    SDL_Color textColor = {255, 255, 255, 255};    // White
+
+    while (!done) {
+        while (SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT) {
+                done = true;
+                break;
+            } else if (e.type == SDL_TEXTINPUT || e.type == SDL_KEYDOWN) {
+                if (e.type == SDL_TEXTINPUT) {
+                    if (strlen(input) < MAX_NAME_LENGTH - 1) {
+                        strncat(input, e.text.text, MAX_NAME_LENGTH - strlen(input) - 1);
+                    }
+                } else if (e.key.keysym.sym == SDLK_BACKSPACE && strlen(input) > 0) {
+                    input[strlen(input) - 1] = '\0';
+                } else if (e.key.keysym.sym == SDLK_RETURN && strlen(input) > 0) {
+                    done = true;
+                }
+            }
+        }
+
+        // Clear the screen
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
+        SDL_RenderClear(renderer);
+
+        // Render input box background
+        SDL_SetRenderDrawColor(renderer, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
+        SDL_RenderFillRect(renderer, &inputBox);
+
+        // Render input box border
+        SDL_SetRenderDrawColor(renderer, borderColor.r, borderColor.g, borderColor.b, borderColor.a);
+        SDL_RenderDrawRect(renderer, &inputBox);
+
+        // Load font for title and input
+        TTF_Font* fontTitle = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 36);
+        TTF_Font* fontInput = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 28);
+        if (!fontTitle || !fontInput) {
+            printf("Error loading font: %s\n", TTF_GetError());
+            SDL_StopTextInput();
+            return;
+        }
+
+        // Render title "Name:"
+        SDL_Surface* titleSurface = TTF_RenderUTF8_Blended(fontTitle, "Name:", textColor);
+        SDL_Texture* titleTexture = SDL_CreateTextureFromSurface(renderer, titleSurface);
+        SDL_Rect titleRect = {
+            inputBox.x + 20,  // Slightly left of input box
+            inputBox.y + 20,  // Slightly above input box
+            titleSurface->w,
+            titleSurface->h
+        };
+        SDL_RenderCopy(renderer, titleTexture, NULL, &titleRect);
+        SDL_FreeSurface(titleSurface);
+        SDL_DestroyTexture(titleTexture);
+
+        // Render the input text
+        SDL_Surface* inputSurface = TTF_RenderUTF8_Blended(fontInput, input, textColor);
+        SDL_Texture* inputTexture = SDL_CreateTextureFromSurface(renderer, inputSurface);
+        SDL_Rect inputRect = {
+            inputBox.x + 20,  // Left padding
+            inputBox.y + 80,  // Centered vertically in the box
+            inputSurface->w,
+            inputSurface->h
+        };
+        SDL_RenderCopy(renderer, inputTexture, NULL, &inputRect);
+        SDL_FreeSurface(inputSurface);
+        SDL_DestroyTexture(inputTexture);
+
+        // Clean up fonts
+        TTF_CloseFont(fontTitle);
+        TTF_CloseFont(fontInput);
+
+        // Update the screen
+        SDL_RenderPresent(renderer);
+    }
+
+    SDL_StopTextInput();
+    strcpy(playerName, input);
+}
+
+
+
+
+
+
+
+
+void add_high_score(const char* name, int score) {
+    if (highScoreBoard.count < MAX_HIGH_SCORES) {
+        // Add new score if there's space
+        strcpy(highScoreBoard.highScores[highScoreBoard.count].name, name);
+        highScoreBoard.highScores[highScoreBoard.count].score = score;
+        highScoreBoard.count++;
+    } else {
+        // Replace the lowest score if the new score is higher
+        int minIndex = 0;
+        for (int i = 1; i < MAX_HIGH_SCORES; i++) {
+            if (highScoreBoard.highScores[i].score < highScoreBoard.highScores[minIndex].score) {
+                minIndex = i;
+            }
+        }
+
+        if (score > highScoreBoard.highScores[minIndex].score) {
+            strcpy(highScoreBoard.highScores[minIndex].name, name);
+            highScoreBoard.highScores[minIndex].score = score;
+        }
+    }
+
+    // Sort high scores in descending order
+    for (int i = 0; i < highScoreBoard.count - 1; i++) {
+        for (int j = i + 1; j < highScoreBoard.count; j++) {
+            if (highScoreBoard.highScores[j].score > highScoreBoard.highScores[i].score) {
+                HighScore temp = highScoreBoard.highScores[i];
+                highScoreBoard.highScores[i] = highScoreBoard.highScores[j];
+                highScoreBoard.highScores[j] = temp;
+            }
+        }
+    }
+}
+
+
