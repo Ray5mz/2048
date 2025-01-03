@@ -19,7 +19,7 @@ typedef enum {
     GAME_PAGE,
     PLAYERVSMACHINE_PAGE
 } GameState;
-
+extern HighScoreBoard highScoreBoard;
 extern int selectedButton;
 extern int mouseX, mouseY;
 extern GameState currentState;
@@ -54,7 +54,8 @@ void welcome_page();
 void loadMenuTextures();
 void renderMainMenu();
 void cleanupMenuTextures();
-
 void renderMachinePage();
 void renderScorePage();
+void setup_ball();
+void update_balls();
 #endif
