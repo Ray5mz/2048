@@ -20,7 +20,7 @@ extern int selectedButton;
 extern bool isHovered;
 extern char *ply_name;
 extern int score;
-
+extern HighScoreBoard highScoreBoard;
 void return_back();
 void handleMainMenuEvent(SDL_Event* event);
 void handleGamePageEvent(Game* game);
