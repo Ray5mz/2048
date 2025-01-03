@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_image.h> // Include SDL_image
 #include "include/render.h"
 #include "include/input.h"
 #include "include/game.h"
@@ -26,6 +27,7 @@ bool isHovered;
 char *ply_name = NULL; // Initialize ply_name
 
 Game game; // Declare the game variable
+HighScoreBoard highScoreBoard = { .count = 0 }; // Initialize high score board
 
 void cleanup() {
     if (startTextTexture) {
@@ -63,13 +65,27 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    // Load the icon image using SDL_image
+    
+SDL_Surface* icon = IMG_Load("assets/icon.png");
+if (!icon) {
+    printf("Failed to load icon: %s\n", IMG_GetError());
+} else {
+    printf("Icon loaded successfully\n");
+    SDL_SetWindowIcon(window, icon);
+    SDL_FreeSurface(icon); // Clean up
+}
+
     // Main loop
     while (game_is_running) {
         process_input(&game); // Pass the game variable
         render(&game); // Pass the game variable
-        if (currentState == GAME_PAGE) {
+        if (currentState == WELCOME_PAGE) {
+            update_balls();
+        } else if (currentState == GAME_PAGE) {
             update(&game, 0.016); // Update the game state
         }
+
         SDL_Delay(16); // Delay to limit CPU usage (~60 frames per second)
     }
 
