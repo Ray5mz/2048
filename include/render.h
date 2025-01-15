@@ -44,7 +44,7 @@ extern void cleanupMenuTextures();
 extern char* render_name_input(char *name);
 void renderGamePage(Game* game);
 void renderPlayerVSMachine(Game* game);
-extern void renderMachinePage();
+extern void renderMachinePage(Game* game);
 extern void renderScorePage();
 
 int initialize_window(void);
@@ -54,7 +54,7 @@ void welcome_page();
 void loadMenuTextures();
 void renderMainMenu();
 void cleanupMenuTextures();
-void renderMachinePage();
+void renderMachinePage(Game* game);
 void renderScorePage();
 void setup_ball();
 void update_balls();
