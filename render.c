@@ -16,13 +16,12 @@ struct ball {
     float width, height;
     float vx, vy; // Velocity components
     Uint8 alpha; // Alpha value for transparency
-	 float ax, ay; 
+    float ax, ay;
 };
 
 int last_frame_time = 0;
 struct ball balls[MAX_BALLS];
 int ball_count = 0;
-
 
 void setup_balls() {
     srand(time(NULL)); // Initialize random number generator (do this once in your program, not every time)
@@ -79,6 +78,7 @@ void update_balls() {
         balls[i].vy *= 0.99;
     }
 }
+
 // Define colors
 SDL_Color white = {255, 255, 255, 255};
 SDL_Color buttonColor = {70, 70, 70, 255};
@@ -141,7 +141,7 @@ void renderMainMenu() {
     SDL_QueryTexture(titleTexture, NULL, NULL, &textWidth, &textHeight);
     SDL_Rect titleRect = {
         (windowWidth - textWidth) / 2,
-        20,
+        200,
         textWidth,
         textHeight
     };
@@ -358,7 +358,7 @@ void render(Game* game) {
             renderGamePage(game);
             break;
         case MACHINE_PAGE:
-            renderMachinePage();
+            renderMachinePage(game);
             break;
         case PLAYERVSMACHINE_PAGE:
             renderPlayerVSMachine(game);
@@ -371,76 +371,6 @@ void render(Game* game) {
     SDL_RenderPresent(renderer);
 }
 
-char* render_name_input(char* name) {
-    // Load the font
-    TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 72);
-    if (!font) {
-        printf("Error loading font: %s\n", TTF_GetError());
-        return NULL;
-    }
-
-    SDL_Color bg_color = {0, 0, 0, 200};  // Semi-transparent black for input box
-    SDL_Color text_color = {255, 255, 255, 255};
-
-    SDL_Rect input_box = {200, 150, 400, 100};  // Input box size and position
-    char user_input[MAX_NAME_LEN + 1] = "";     // Input buffer
-    int input_len = 0;
-    bool input_active = true;
-
-    SDL_StartTextInput();  // Start text input mode
-
-    // Main event loop
-    SDL_Event event;
-    while (input_active) {
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                input_active = false;
-                break;
-            } else if (event.type == SDL_KEYDOWN) {
-                if (event.key.keysym.sym == SDLK_RETURN) {  // Confirm input
-                    input_active = false;
-                    strncpy(name, user_input, MAX_NAME_LEN);
-                    name[MAX_NAME_LEN] = '\0';  // Null-terminate
-                } else if (event.key.keysym.sym == SDLK_BACKSPACE && input_len > 0) {
-                    user_input[--input_len] = '\0';  // Remove last character
-                }
-            } else if (event.type == SDL_TEXTINPUT) {
-                if (input_len < MAX_NAME_LEN) {
-                    strcat(user_input, event.text.text);  // Append input
-                    input_len += strlen(event.text.text);
-                }
-            }
-        }
-
-        // Clear the screen
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-
-        // Draw the input box
-        SDL_SetRenderDrawColor(renderer, bg_color.r, bg_color.g, bg_color.b, bg_color.a);
-        SDL_RenderFillRect(renderer, &input_box);
-
-        // Render the user input text
-        SDL_Surface* text_surface = TTF_RenderText_Solid(font, user_input, text_color);
-        if (text_surface) {
-            SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
-            SDL_Rect text_rect = {input_box.x + 10, input_box.y + 25, text_surface->w, text_surface->h};
-            SDL_RenderCopy(renderer, text_texture, NULL, &text_rect);
-
-            SDL_DestroyTexture(text_texture);
-            SDL_FreeSurface(text_surface);
-        }
-
-        // Update the screen
-        SDL_RenderPresent(renderer);
-    }
-
-    SDL_StopTextInput();  // Stop text input mode
-    TTF_CloseFont(font);  // Clean up the font
-    return name;
-}
-
-
 void renderGamePage(Game* game) {
     int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
@@ -449,7 +379,7 @@ void renderGamePage(Game* game) {
     update(game, 0.016);
 
     // Render the game grid
-    render_thegrid(renderer, window_width, window_height, game);
+    render_thegrid(renderer, window_width, window_height, game, false,0);
 
     // Check if the player has lost and render the splash screen if necessary
     if (has_lost(game)) {
@@ -461,7 +391,7 @@ void renderGamePage(Game* game) {
         render_splash_screen(renderer, "You Have Won", bgColor);
         game->state = GS_WON;
     }
-    SDL_Event event;
+SDL_Event event;
     // Check if the game is won or lost
     if (game->state == GS_WON || game->state == GS_LOST) {
         // Poll for events to detect a space bar press
@@ -482,23 +412,81 @@ void renderGamePage(Game* game) {
             }
         }
     }
+}
 
-    }
-
-void renderMachinePage() {}
-
-void renderPlayerVSMachine(Game* game) {
-    int window_width, window_height;
+void renderMachinePage(Game* game) {
+  
+ int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
-    render_thegrid(renderer, window_width, window_height, game);
+
+    // Update the game state
+    Machine(game, 0.016);
+
+    // Render the game grid
+    render_thegrid(renderer, window_width, window_height, game, true,0);
+
+    // Check if the player has lost and render the splash screen if necessary
+    if (has_lost(game)) {
+        SDL_Color bgColor = {255, 0, 0, 200}; // Red background, 200 alpha for semi-transparency
+        render_splash_screen(renderer, "Lost", bgColor);
+        game->state = GS_LOST;
+    } else if (has_won(game)) { // Optionally handle a "win" state
+        SDL_Color bgColor = {0, 255, 0, 200}; // Green background, 200 alpha for semi-transparency
+        render_splash_screen(renderer, "Won", bgColor);
+        game->state = GS_WON;
+    }
+              
 }
 
 
+void renderPlayerVSMachine(Game* game) {
+   
+ int window_width, window_height;
+    SDL_GetWindowSize(window, &window_width, &window_height);
 
+    // Update the game state
+    update(game, 0.016);
+int player_grid_offset_x=0;
+    // Render the game grid
+    render_thegrid(renderer, window_width/2, window_height, game, false, player_grid_offset_x);
 
+    // Check if the player has lost and render the splash screen if necessary
+    if (has_lost(game)) {
+        SDL_Color bgColor = {255, 0, 0, 200}; // Red background, 200 alpha for semi-transparency
+        render_splash_screen(renderer, "You Have Lost", bgColor);
+        game->state = GS_LOST;
+    } else if (has_won(game)) { // Optionally handle a "win" state
+        SDL_Color bgColor = {0, 255, 0, 200}; // Green background, 200 alpha for semi-transparency
+        render_splash_screen(renderer, "You Have Won", bgColor);
+        game->state = GS_WON;
+    }
+int ai_grid_offset_x=window_width/2;
+	render_thegrid(renderer, window_width/2, window_height, game, true, ai_grid_offset_x);
 
+SDL_Event event;
+    // Check if the game is won or lost
+    if (game->state == GS_WON || game->state == GS_LOST) {
+        // Poll for events to detect a space bar press
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) { // Detect space bar
+				      printf("so yeah basically the space ar is detected \n");
+                if (highScoreBoard.count < MAX_HIGH_SCORES || 
+                    game->score > highScoreBoard.highScores[MAX_HIGH_SCORES - 1].score) {
+                    // Call ask_for_player_name when space bar is pressed
+                    char playerName[MAX_NAME_LENGTH];
+                    ask_for_player_name(game, playerName);
+                    add_high_score(playerName, game->score);
+                }
+
+                // Transition to SCORE_PAGE after handling high score
+                currentState = SCORE_PAGE;
+                break; // Exit event polling after handling
+            }
+        }
+    }
+}
 void renderScorePage() {
-    // Check renderer and window
+    // Check renderer 	  PlayerVSMachine(game, 0.nd window
     if (!renderer) {
         printf("Error: Renderer is NULL\n");
         return;
@@ -532,7 +520,7 @@ void renderScorePage() {
     SDL_Texture* scoreTexture = SDL_CreateTextureFromSurface(renderer, scoreTextSurface);
     SDL_FreeSurface(scoreTextSurface); // Free the surface after creating the texture
     if (!scoreTexture) {
-        printf("Error creating score texture: %s\n", SDL_GetError());
+        printf("Error creating score texture: %s\n", TTF_GetError());
         TTF_CloseFont(scoreFont);
         return;
     }
@@ -578,7 +566,7 @@ void renderScorePage() {
 
         SDL_Texture* scoreTexture = SDL_CreateTextureFromSurface(renderer, scoreSurface);
         if (!scoreTexture) {
-            printf("Error creating score texture for high score %d: %s\n", i, SDL_GetError());
+            printf("Error creating score texture for high score %d: %s\n", i, TTF_GetError());
             SDL_FreeSurface(scoreSurface);
             continue;
         }
@@ -595,8 +583,5 @@ void renderScorePage() {
     // Clean up font
     TTF_CloseFont(scoreFont);
 
-  
-
     printf("Rendering Score Page\n");
 }
-
