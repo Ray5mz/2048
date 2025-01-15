@@ -15,10 +15,15 @@ extern int mouseY;
 extern int selectedButton;
 extern char *ply_name; // Ensure ply_name is declared as an external variable
 
-void return_back() {
+void return_back(Game* game) {
     if (currentState != WELCOME_PAGE && currentState != MAIN_MENU) {
         currentState = MAIN_MENU;
         loadMenuTextures(); // Load menu textures when transitioning to the main menu
+         game->state = GS_PLAYING;
+         game->action = A_NONE;
+		    memset(game->board, 0,sizeof(game->board));
+        memset(game->ai_board, 0,sizeof(game->ai_board));
+		    
     }
 }
 
@@ -57,10 +62,10 @@ void process_input(Game* game) {
                         }
                         break;
                     case SDLK_ESCAPE:
-                        return_back();
+                        return_back(game);
                         break;
                 }
-				    } else if (currentState == GAME_PAGE){
+				    } else if (currentState == GAME_PAGE || currentState== PLAYERVSMACHINE_PAGE ){
                   switch (event.key.keysym.sym) {
                     case SDLK_RIGHT:
                         game->action = A_MOVE_RIGHT;
@@ -75,14 +80,33 @@ void process_input(Game* game) {
                         game->action = A_MOVE_UP;
                         break;
                     case SDLK_ESCAPE:
-                        return_back();
+                        return_back(game);
                         break;
                 }            
-				       
+			} else if (currentState == MACHINE_PAGE || currentState == PLAYERVSMACHINE_PAGE){
+			   int direction = rand()%4;
+				 switch (direction){
+              case 0:
+					       game->Maction = A_MOVE_RIGHT;
+					       break;
+						 case 1:
+					       game->Maction = A_MOVE_LEFT;
+					       break;
+					   case 2:
+					       game->Maction = A_MOVE_DOWN;
+					       break;
+					   case 3:
+					       game->Maction= A_MOVE_UP;
+					
+
+				 }
+				   if(event.key.keysym.sym==SDLK_ESCAPE){
+				    return_back(game); 
+				}
             } else {
                 // Handle ESC key to return to the main menu
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
-                    return_back();
+                    return_back(game);
                 }
             }
         } else if (event.type == SDL_MOUSEMOTION) {
@@ -105,10 +129,14 @@ void process_input(Game* game) {
                     handleScorePageEvent(&event); // Placeholder for future
                     break;
                 case PLAYERVSMACHINE_PAGE:
-                    handlePlayerVSMachineEvent(&event);
+                    initialize_game(game);
+		                handleGamePageEvent(game); 	
+                   initialize_gameM(game); 
+                   ai_move(game);   
                     break;
                 case MACHINE_PAGE:
-                    handleMachinePageEvent(&event); // Placeholder for future
+					       initialize_gameM(game); 
+                   ai_move(game);  // Placeholder for future
                     break;
             }
         }
@@ -163,7 +191,7 @@ void handleMainMenuEvent(SDL_Event* event) {
 
 void handleGamePageEvent(Game* game) {
     // Handle game actions in GAME_PAGE
-    if (currentState == GAME_PAGE) {
+
         switch (game->action) {
             case A_MOVE_RIGHT:
                 move_right(game);
@@ -179,14 +207,29 @@ void handleGamePageEvent(Game* game) {
                 break;
             default:
                 break;
-        }
-
-
-
-
+        
 	}
 }
 
 void handleScorePageEvent(SDL_Event* event){}
-void handleMachinePageEvent(SDL_Event* event){}
-void handlePlayerVSMachineEvent(SDL_Event* event){}
+void ai_move(Game* game) {
+    // Simple AI logic to make a move
+    int direction = rand() % 4;
+    switch (direction) {
+        case 0:
+            Mmove_up(game);
+            break;
+        case 1:
+            Mmove_down(game);
+            break;
+        case 2:
+            Mmove_left(game);
+            break;
+        case 3:
+            Mmove_right(game);
+            break;
+    }
+    if (game->has_moved) {
+        add_random_tileM(game);
+    }
+}
