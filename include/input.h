@@ -21,12 +21,12 @@ extern bool isHovered;
 extern char *ply_name;
 extern int score;
 extern HighScoreBoard highScoreBoard;
-void return_back();
+void return_back(Game* game);
 void handleMainMenuEvent(SDL_Event* event);
 void handleGamePageEvent(Game* game);
 void handleScorePageEvent(SDL_Event* event);
 void handleMachinePageEvent(SDL_Event* event);
 void handlePlayerVSMachineEvent(SDL_Event* event);
 void process_input(Game* game);
-
+void ai_move(Game* game); 
 #endif // INPUT_H
