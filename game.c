@@ -5,6 +5,7 @@
 #include "include/game.h"
 #include "include/utils.h"
 #include "include/input.h"
+
 // Function to draw a rounded rectangle
 void render_rounded_rect(SDL_Renderer* renderer, SDL_Rect* rect, int radius) {
     int x = rect->x;
@@ -45,21 +46,24 @@ void render_rounded_rect(SDL_Renderer* renderer, SDL_Rect* rect, int radius) {
     }
 }
 
-void render_thegrid(SDL_Renderer* renderer, int window_width, int window_height, Game* game) {
-    // Clear the screen with a background color
-    SDL_SetRenderDrawColor(renderer, 107, 107, 223, 255);
-    SDL_RenderClear(renderer);
 
+void render_thegrid(SDL_Renderer* renderer, int grid_width, int grid_height, Game* game, bool is_ai, int offset_x) {
     // Calculate the position and size of each tile
     int tile_size = TILE_SIZE;
     int gap = GAP;
-    int start_x = (window_width - (GRID_SIZE * tile_size + (GRID_SIZE - 1) * gap)) / 2;
-    int start_y = (window_height - (GRID_SIZE * tile_size + (GRID_SIZE - 1) * gap)) / 2;
+    int start_x = offset_x + (grid_width - (GRID_SIZE * tile_size + (GRID_SIZE - 1) * gap)) / 2;
+    int start_y = (grid_height - (GRID_SIZE * tile_size + (GRID_SIZE - 1) * gap)) / 2;
 
     // Render each tile
-    for (int y = 0; y < GRID_SIZE; y++) {
+	  int value;
+	    for (int y = 0; y < GRID_SIZE; y++) {
         for (int x = 0; x < GRID_SIZE; x++) {
-            int value = game->board[y * GRID_SIZE + x];
+if(is_ai==true){
+       value=game->ai_board[y * GRID_SIZE +x];
+	}else{
+		   value=game->board[y * GRID_SIZE +x];
+	}
+            			     
             int tile_x = start_x + x * (tile_size + gap);
             int tile_y = start_y + y * (tile_size + gap);
 
@@ -101,7 +105,7 @@ void render_thegrid(SDL_Renderer* renderer, int window_width, int window_height,
 
 void render_score_and_moves(Game* game, SDL_Renderer* renderer)
 {
-	  TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48); 
+    TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     char text[32] = { 0 };
     snprintf(text, 32, "Score: %d", game->score);
@@ -118,8 +122,6 @@ void render_score_and_moves(Game* game, SDL_Renderer* renderer)
     SDL_DestroyTexture(textTexture);
     SDL_FreeSurface(textSurface);
 }
-
-
 void initialize_game(Game* game) {
     // Initialize the game state
     game->state = GS_PLAYING;
@@ -132,11 +134,56 @@ void initialize_game(Game* game) {
     // Initialize the board with zeros
     for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
         game->board[i] = 0;
+
     }
 
     // Add initial tiles
     add_random_tile(game);
     add_random_tile(game);
+
+}
+
+void initialize_gamePVM(Game* game) {
+    // Initialize the game state
+   					        
+game->state = GS_PLAYING;
+    game->action = A_NONE;
+    game->score = 0;
+    game->moves = 0;
+    game->last_inserted = -1;
+    game->has_moved = false; 
+    // Initialize the board with zeros
+    for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+        game->board[i] = 0;
+	}
+ for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+        game->ai_board[i] = 0; // Initialize AI board
+    }
+
+    // Add initial tiles
+    add_random_tile(game);
+    add_random_tile(game);
+    add_random_tileM(game); // Add initial tiles for AI
+    add_random_tileM(game);
+}
+void initialize_gameM(Game* game) {
+    // Initialize the game state
+    game->Mstate = GS_PLAYING;
+    game->Maction = A_NONE;
+    game->Mscore = 0;
+    game->Mmoves = 0;
+    game->Mlast_inserted = -1;
+    game->Mhas_moved = false;
+
+    // Initialize the board with zeros
+    for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+     
+        game->ai_board[i] = 0; // Initialize AI board
+    }
+
+
+    add_random_tileM(game); // Add initial tiles for AI
+    add_random_tileM(game);
 }
 
 bool has_won(Game* game) {
@@ -245,6 +292,54 @@ void move_up(Game* game) {
         }
     }
 }
+void Mmove_right(Game* game) {
+    for (int y = 0; y < GRID_SIZE; y++) {
+        for (int ix = GRID_SIZE - 1; ix >= 0; ix--) {
+            for (int jx = ix - 1; jx >= 0; jx--) {
+                if (move_cell_maybe_break(game, &game->ai_board[y * GRID_SIZE + ix], &game->ai_board[y * GRID_SIZE + jx])) {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void Mmove_left(Game* game) {
+    for (int y = 0; y < GRID_SIZE; y++) {
+        for (int ix = 0; ix < GRID_SIZE - 1; ix++) {
+            for (int jx = ix + 1; jx < GRID_SIZE; jx++) {
+                if (move_cell_maybe_break(game, &game->ai_board[y * GRID_SIZE + ix], &game->ai_board[y * GRID_SIZE + jx])) {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void Mmove_down(Game* game) {
+    for (int x = 0; x < GRID_SIZE; x++) {
+        for (int iy = GRID_SIZE - 1; iy >= 0; iy--) {
+            for (int jy = iy - 1; jy >= 0; jy--) {
+                if (move_cell_maybe_break(game, &game->ai_board[iy * GRID_SIZE + x], &game->ai_board[jy * GRID_SIZE + x])) {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+void Mmove_up(Game* game) {
+    for (int x = 0; x < GRID_SIZE; x++) {
+        for (int iy = 0; iy < GRID_SIZE - 1; iy++) {
+            for (int jy = iy + 1; jy < GRID_SIZE; jy++) {
+                if (move_cell_maybe_break(game, &game->ai_board[iy * GRID_SIZE + x], &game->ai_board[jy * GRID_SIZE + x])) {
+                    break;
+                }
+            }
+        }
+    }
+}
+
 
 void update(Game* game, double delta) {
     if (game->state == GS_PLAYING) {
@@ -271,7 +366,96 @@ void update(Game* game, double delta) {
     }
 }
 
+void PlayerVSMachine(Game* game, double delta) {    
+ if (game->state == GS_PLAYING) {
+        game->has_moved = false;
+        handleGamePageEvent(game);
 
+        if (game->action != A_NONE) {
+            game->action = A_NONE;
+
+            if (game->has_moved) {
+                game->last_inserted = add_random_tile(game);
+            } else {
+                game->last_inserted = -1;
+            }
+
+            game->moves++;
+        }
+
+        if (has_won(game)) {
+            game->state = GS_WON;
+        } else if (has_lost(game)) {
+            game->state = GS_LOST;
+        }
+
+ static double ai_timer=0.0;
+ ai_timer += delta;
+   
+ if (game->Mstate == GS_PLAYING) {
+        game->Mhas_moved = false;
+        if (ai_timer >= 0.5) {
+            ai_move(game);
+            ai_timer = 0.0; // Reset the timer
+        }
+      
+
+        if (game->Maction != A_NONE) {
+            game->Maction = A_NONE;
+
+            if (game->Mhas_moved) {
+                game->Mlast_inserted = add_random_tileM(game);
+            } else {
+                game->Mlast_inserted = -1;
+            }
+
+            game->Mmoves++;
+        }
+
+        if (has_won(game)) {
+            game->Mstate = GS_WON;
+        } else if (has_lost(game)) {
+            game->Mstate = GS_LOST;
+        }
+
+        // AI makes a move every 0.5 seconds
+            }
+} 
+}
+
+void Machine(Game* game, double delta){
+static double ai_timer=0.0;
+ai_timer += delta;
+ if (game->Mstate == GS_PLAYING) {
+        game->Mhas_moved = false;
+        if (ai_timer >= 0.5) {
+            ai_move(game);
+            ai_timer = 0.0; // Reset the timer
+        }
+      
+
+        if (game->Maction != A_NONE) {
+            game->Maction = A_NONE;
+
+            if (game->Mhas_moved) {
+                game->Mlast_inserted = add_random_tileM(game);
+            } else {
+                game->Mlast_inserted = -1;
+            }
+
+            game->Mmoves++;
+        }
+
+        if (has_won(game)) {
+            game->Mstate = GS_WON;
+        } else if (has_lost(game)) {
+            game->Mstate = GS_LOST;
+        }
+
+        // AI makes a move every 0.5 seconds
+            }
+
+} 
 void render_splash_screen(SDL_Renderer* renderer, const char* text, SDL_Color color)
 {
     // Open the font with a larger size for smoother text
@@ -330,15 +514,6 @@ void render_splash_screen(SDL_Renderer* renderer, const char* text, SDL_Color co
     SDL_FreeSurface(textSurface);
     TTF_CloseFont(font);
 }
-
-
-
-
-
-//----------------------------------------------------------------------------------SCORE THINGIES--------------------------------------------------------------------------------------\\
-
-
-
 
 void ask_for_player_name(Game* game, char* playerName) {
     SDL_StartTextInput();
@@ -442,13 +617,6 @@ void ask_for_player_name(Game* game, char* playerName) {
     strcpy(playerName, input);
 }
 
-
-
-
-
-
-
-
 void add_high_score(const char* name, int score) {
     if (highScoreBoard.count < MAX_HIGH_SCORES) {
         // Add new score if there's space
@@ -482,4 +650,14 @@ void add_high_score(const char* name, int score) {
     }
 }
 
+void init_grille_vs_machine(Game* game) {
+    for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+        game->board[i] = 0;
+        game->ai_board[i] = 0;
+    }
 
+    add_random_tile(game);
+    add_random_tile(game);
+    add_random_tileM(game); // Add initial tiles for AI
+    add_random_tileM(game);
+}
