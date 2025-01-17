@@ -2,87 +2,74 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <math.h> // Include the math header
-#include "include/game.h"
+#include "include/cgame.h"
 #include "include/utils.h"
 #include "include/input.h"
 
 // Function to draw a rounded rectangle
-void render_rounded_rect(SDL_Renderer* renderer, SDL_Rect* rect, int radius) {
-    int x = rect->x;
-    int y = rect->y;
-    int w = rect->w;
-    int h = rect->h;
-
-    // Draw the main rectangle
-    SDL_RenderDrawRect(renderer, rect);
-
-    // Draw the corners
-    SDL_RenderDrawLine(renderer, x + radius, y, x + w - radius, y);
-    SDL_RenderDrawLine(renderer, x + radius, y + h, x + w - radius, y + h);
-    SDL_RenderDrawLine(renderer, x, y + radius, x, y + h - radius);
-    SDL_RenderDrawLine(renderer, x + w, y + radius, x + w, y + h - radius);
-
-    // Draw the arcs (using small circles to approximate)
-    for (int i = 0; i < 90; i += 5) {
-        int angle = i * (M_PI / 180.0);
-        int x1 = x + radius + (int)(radius * cos(angle));
-        int y1 = y + radius - (int)(radius * sin(angle));
-        SDL_RenderDrawPoint(renderer, x1, y1);
-
-        angle = (90 + i) * (M_PI / 180.0);
-        x1 = x + w - radius + (int)(radius * cos(angle));
-        y1 = y + radius - (int)(radius * sin(angle));
-        SDL_RenderDrawPoint(renderer, x1, y1);
-
-        angle = (180 + i) * (M_PI / 180.0);
-        x1 = x + w - radius + (int)(radius * cos(angle));
-        y1 = y + h - radius - (int)(radius * sin(angle));
-        SDL_RenderDrawPoint(renderer, x1, y1);
-
-        angle = (270 + i) * (M_PI / 180.0);
-        x1 = x + radius + (int)(radius * cos(angle));
-        y1 = y + h - radius - (int)(radius * sin(angle));
-        SDL_RenderDrawPoint(renderer, x1, y1);
-    }
+void render_rounded_rect(SDL_Renderer* renderer, SDL_Rect* rect, int radius, SDL_Color color) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+    
+    // Create a temporary surface for anti-aliased drawing
+    SDL_Surface* surface = SDL_CreateRGBSurface(0, rect->w, rect->h, 32, 0, 0, 0, 0);
+    SDL_FillRect(surface, NULL, SDL_MapRGBA(surface->format, color.r, color.g, color.b, color.a));
+    
+    // Create texture from surface
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_FreeSurface(surface);
+    
+    // Enable alpha blending for smooth edges
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    
+    // Draw filled rounded rectangle
+    SDL_RenderCopy(renderer, texture, NULL, rect);
+    SDL_DestroyTexture(texture);
 }
 
-
 void render_thegrid(SDL_Renderer* renderer, int grid_width, int grid_height, Game* game, bool is_ai, int offset_x) {
-    // Calculate the position and size of each tile
-    int tile_size = TILE_SIZE;
-    int gap = GAP;
+    const int tile_size = TILE_SIZE;
+    const int gap = GAP;
+    const int corner_radius = 10;
+    
     int start_x = offset_x + (grid_width - (GRID_SIZE * tile_size + (GRID_SIZE - 1) * gap)) / 2;
     int start_y = (grid_height - (GRID_SIZE * tile_size + (GRID_SIZE - 1) * gap)) / 2;
-
-    // Render each tile
-	  int value;
-	    for (int y = 0; y < GRID_SIZE; y++) {
+    
+    // Dark background color for tiles
+    SDL_Color tile_color = {28, 28, 35, 255}; // Dark background
+    
+    // Custom color palette for numbers based on the image
+    SDL_Color number_colors[] = {
+        {110, 203, 245, 255},  // Light Sky Blue #6ECBF5
+        {194, 82, 225, 255},   // Medium Orchid #C252E1
+        {224, 217, 246, 255},  // Lavender #E0D9F6
+        {88, 106, 226, 255},   // Royal Blue #586AE2
+        {42, 35, 86, 255}      // Midnight Blue #2A2356
+    };
+    
+    // Render grid
+    for (int y = 0; y < GRID_SIZE; y++) {
         for (int x = 0; x < GRID_SIZE; x++) {
-if(is_ai==true){
-       value=game->ai_board[y * GRID_SIZE +x];
-	}else{
-		   value=game->board[y * GRID_SIZE +x];
-	}
-            			     
+            int value = is_ai ? game->ai_board[y * GRID_SIZE + x] : game->board[y * GRID_SIZE + x];
             int tile_x = start_x + x * (tile_size + gap);
             int tile_y = start_y + y * (tile_size + gap);
-
             SDL_Rect tile_rect = {tile_x, tile_y, tile_size, tile_size};
-
-            // Set the tile color based on the value
-            SDL_Color tile_color = {255, 255, 255, 255}; // White color
-            SDL_SetRenderDrawColor(renderer, tile_color.r, tile_color.g, tile_color.b, tile_color.a);
-
-            // Render the rounded rectangle
-            render_rounded_rect(renderer, &tile_rect, 10);
-
-            // Optionally, render the value inside the tile
+            
+            // Render dark tile background
+            render_rounded_rect(renderer, &tile_rect, corner_radius, tile_color);
+            
+            // Render value text if tile is not empty
             if (value > 0) {
                 TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48);
                 if (font) {
                     char value_str[10];
                     snprintf(value_str, sizeof(value_str), "%d", value);
-                    SDL_Color text_color = {0, 0, 0, 255}; // Black color
+                    
+                    // Select color based on value
+                    SDL_Color text_color;
+                    int color_index = ((int)log2(value) - 1) % 5;  // Cycle through the 5 colors
+                    text_color = number_colors[color_index];
+                    
                     SDL_Surface* text_surface = TTF_RenderText_Blended(font, value_str, text_color);
                     if (text_surface) {
                         SDL_Texture* text_texture = SDL_CreateTextureFromSurface(renderer, text_surface);
@@ -102,7 +89,6 @@ if(is_ai==true){
         }
     }
 }
-
 void render_score_and_moves(Game* game, SDL_Renderer* renderer)
 {
     TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48);
@@ -236,7 +222,7 @@ bool move_cell_maybe_break(Game* game, int* target, int* src) {
     } else if (*target == *src && *target != 0 && *src != 0) {
         *target = *target + *target;
         *src = 0;
-        game->score += pow(2, *target);
+       game->score += 1LL << *target; // 1LL ensures the result is a long long
         game->has_moved = true;
         return true;
     } else if (*src != 0) {
@@ -558,9 +544,12 @@ void ask_for_player_name(Game* game, char* playerName) {
             }
         }
 
-        // Clear the screen
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
-        SDL_RenderClear(renderer);
+        // Clear the screen (but keep the existing background)
+        // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
+        // SDL_RenderClear(renderer);
+
+        // Render the existing background (assuming it's already rendered)
+        // For example, if you're on the game page, the grid is already rendered.
 
         // Render input box background
         SDL_SetRenderDrawColor(renderer, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
@@ -616,12 +605,12 @@ void ask_for_player_name(Game* game, char* playerName) {
     SDL_StopTextInput();
     strcpy(playerName, input);
 }
+void add_high_score(const char* name, Game* game) {
 
-void add_high_score(const char* name, int score) {
     if (highScoreBoard.count < MAX_HIGH_SCORES) {
         // Add new score if there's space
         strcpy(highScoreBoard.highScores[highScoreBoard.count].name, name);
-        highScoreBoard.highScores[highScoreBoard.count].score = score;
+        highScoreBoard.highScores[highScoreBoard.count].score = game->score; // Ensure this is correct
         highScoreBoard.count++;
     } else {
         // Replace the lowest score if the new score is higher
@@ -632,9 +621,9 @@ void add_high_score(const char* name, int score) {
             }
         }
 
-        if (score > highScoreBoard.highScores[minIndex].score) {
+        if (game->score > highScoreBoard.highScores[minIndex].score) {
             strcpy(highScoreBoard.highScores[minIndex].name, name);
-            highScoreBoard.highScores[minIndex].score = score;
+            highScoreBoard.highScores[minIndex].score = game->score; // Ensure this is correct
         }
     }
 
@@ -647,9 +636,9 @@ void add_high_score(const char* name, int score) {
                 highScoreBoard.highScores[j] = temp;
             }
         }
-    }
+  }
+printf("Adding high score: Name = %s, Score = %d\n", name, game->score);
 }
-
 void init_grille_vs_machine(Game* game) {
     for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
         game->board[i] = 0;
