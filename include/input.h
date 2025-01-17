@@ -1,32 +1,74 @@
-#ifndef INPUT_H
-#define INPUT_H
+#ifndef RENDER_H
+#define RENDER_H
 
-#include <stdio.h>
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
-#include "render.h"
 #include "cgame.h"
-#include "utils.h"
-
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <libswscale/swscale.h>
+#include <SDL2/SDL_mixer.h>
+#define GRID_SIZE 4
+#define MAX_NAME_LEN 20
 #define FALSE 0
 #define TRUE 1
 
-extern int is_welcome_page;
-extern int game_is_running;
-extern int mouseX;
-extern int mouseY;
-extern GameState currentState;
-extern int selectedButton;
-extern bool isHovered;
-extern char *ply_name;
-extern int score;
+typedef enum {
+    WELCOME_PAGE,
+    MAIN_MENU,
+    MACHINE_PAGE,
+    SCORE_PAGE,
+    GAME_PAGE,
+    PLAYERVSMACHINE_PAGE
+} GameState;
+extern void play_music(const char* filepath);
+extern AVFormatContext* formatContext;
+extern AVCodecContext* codecContext;
+extern AVFrame* frame;
+extern AVPacket* packet;
+extern struct SwsContext* swsContext;
+extern SDL_Texture* videoTexture;
+extern int videoStreamIndex;
+extern Mix_Music* music;
 extern HighScoreBoard highScoreBoard;
-void return_back(Game* game);
-void handleMainMenuEvent(SDL_Event* event);
-void handleGamePageEvent(Game* game);
-void handleScorePageEvent(SDL_Event* event);
-void handleMachinePageEvent(SDL_Event* event);
-void handlePlayerVSMachineEvent(SDL_Event* event);
-void process_input(Game* game);
-void ai_move(Game* game); 
-#endif // INPUT_H
+extern int selectedButton;
+extern int mouseX, mouseY;
+extern GameState currentState;
+extern SDL_Renderer* renderer;
+extern TTF_Font* largeFont;
+extern TTF_Font* smallFont;
+extern SDL_Texture* textTexture;
+extern SDL_Window* window;
+extern SDL_Texture* startTextTexture;
+extern int game_is_running;
+extern bool isHovered;
+
+void initialize_game(Game* game);
+void render_grid(SDL_Renderer* renderer, int window_width, int window_height, Game* game);
+void transition_to_main_menu();
+void welcome_page();
+void loadMenuTextures();
+void renderMainMenu();
+void cleanupMenuTextures();
+char* render_name_input(char *name);
+void renderGamePage(Game* game);
+void renderPlayerVSMachine(Game* game);
+void renderMachinePage(Game* game);
+void renderScorePage();
+
+int initialize_window(void);
+void render(Game* game);
+void transition_to_main_menu();
+void welcome_page();
+void loadMenuTextures();
+void renderMainMenu();
+void cleanupMenuTextures();
+void renderMachinePage(Game* game);
+void renderScorePage();
+void setup_balls();
+void update_balls();
+bool loadVideo(const char* filepath, SDL_Renderer* renderer);
+void renderVideoFrame(SDL_Renderer* renderer);
+
+#endif
