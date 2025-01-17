@@ -1,84 +1,180 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_render.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include "include/render.h"
-#include "include/game.h"
+#include "include/cgame.h"
 #include "include/input.h"
 #include <time.h>
+#include <SDL2/SDL_mixer.h>
 
-#define FPS 120
-#define FRAME_TARGET_TIME (1000 / FPS) // How many frames in milliseconds
 
 #define MAX_BALLS 30
 
 struct ball {
     float x, y;
-    float width, height;
-    float vx, vy; // Velocity components
-    Uint8 alpha; // Alpha value for transparency
-    float ax, ay;
+    int width, height;
+    float vy;
+    int alpha;
 };
 
-int last_frame_time = 0;
+static Uint32 last_frame_time = 0;
 struct ball balls[MAX_BALLS];
 int ball_count = 0;
 
+
+
+bool loadVideo(const char* filepath, SDL_Renderer* renderer) {
+    // Open the video file
+    if (avformat_open_input(&formatContext, filepath, NULL, NULL) != 0) {
+        printf("Unable to open video file: %s\n", filepath);
+        return false;
+    }
+
+    // Find stream info
+    if (avformat_find_stream_info(formatContext, NULL) < 0) {
+        printf("Unable to find stream info for video file: %s\n", filepath);
+        return false;
+    }
+
+    // Find the video stream
+    for (unsigned int i = 0; i < formatContext->nb_streams; i++) {
+        if (formatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+            videoStreamIndex = i;
+            break;
+        }
+    }
+    if (videoStreamIndex == -1) {
+        printf("No video stream found in file: %s\n", filepath);
+        return false;
+    }
+
+    // Get the video codec
+    AVCodecParameters* codecParams = formatContext->streams[videoStreamIndex]->codecpar;
+    const AVCodec* codec = avcodec_find_decoder(codecParams->codec_id);
+    if (!codec) {
+        printf("Unsupported codec for video file: %s\n", filepath);
+        return false;
+    }
+
+    // Initialize the codec context
+    codecContext = avcodec_alloc_context3(codec);
+    avcodec_parameters_to_context(codecContext, codecParams);
+    if (avcodec_open2(codecContext, codec, NULL) < 0) {
+        printf("Unable to open codec for video file: %s\n", filepath);
+        return false;
+    }
+
+    // Prepare buffers
+    frame = av_frame_alloc();
+    packet = av_packet_alloc();
+
+    // Initialize the conversion context
+    swsContext = sws_getContext(
+        codecContext->width, codecContext->height, codecContext->pix_fmt,
+        codecContext->width, codecContext->height, AV_PIX_FMT_RGBA,
+        SWS_BILINEAR, NULL, NULL, NULL
+    );
+
+    // Create the SDL texture for displaying frames
+    videoTexture = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_RGBA32,
+        SDL_TEXTUREACCESS_STREAMING,
+        codecContext->width,
+        codecContext->height
+    );
+
+    return true;
+}
+
+// Render video frames
+void renderVideoFrame(SDL_Renderer* renderer) {
+    static bool isFrameAvailable = false;
+
+    if (av_read_frame(formatContext, packet) >= 0) {
+        if (packet->stream_index == videoStreamIndex) {
+            if (avcodec_send_packet(codecContext, packet) >= 0) {
+                while (avcodec_receive_frame(codecContext, frame) >= 0) {
+                    // Convert the frame to RGBA format
+                    uint8_t* data[4];
+                    int linesize[4];
+                    SDL_LockTexture(videoTexture, NULL, (void**)data, linesize);
+                    sws_scale(
+                        swsContext,
+                        (const uint8_t* const*)frame->data, frame->linesize,
+                        0, codecContext->height,
+                        data, linesize
+                    );
+                    SDL_UnlockTexture(videoTexture);
+
+                    isFrameAvailable = true; // Mark that a valid frame was rendered
+                }
+            }
+        }
+        av_packet_unref(packet);
+    } else {
+        // Restart the video in a loop
+        av_seek_frame(formatContext, videoStreamIndex, 0, AVSEEK_FLAG_BACKWARD);
+    }
+
+    // Render the last valid frame if no new frame is available
+    if (isFrameAvailable) {
+        SDL_RenderCopy(renderer, videoTexture, NULL, NULL);
+    }
+}
+
+// Setup the balls with initial positions and properties
 void setup_balls() {
-    srand(time(NULL)); // Initialize random number generator (do this once in your program, not every time)
+    srand(time(NULL));
     int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
 
-    // Define game boundaries or range for random values
-    int max_x = window_width; // Replace with your game width
-    int max_y = 50; // Replace with your game height
-
-    // Generate random positions and velocities for each ball
     for (int i = 0; i < MAX_BALLS; i++) {
-        balls[i].x = rand() % max_x;
-        balls[i].y = rand() % max_y;
+        balls[i].x = rand() % window_width;   // Random x position within the window
+        balls[i].y = rand() % window_height - window_height; // Start above the visible screen
         balls[i].width = 28;
         balls[i].height = 28;
-        //balls[i].vx = (rand() % 200 - 100) * 0.1; // Random velocity in x direction
-        balls[i].vy = (rand() % 200 - 100) * 0.1; // Random velocity in y direction
-        balls[i].ax = 0; // No acceleration in x direction
-        balls[i].ay = 0.05; // Constant acceleration in y direction (gravity)
-        balls[i].alpha = 130; // Set initial alpha value for transparency
+        balls[i].vy = 50 + rand() % 100;     // Random falling speed between 50 and 150 pixels/second
+        balls[i].alpha = 130 + rand() % 126; // Random transparency (130-255)
         ball_count++;
     }
 }
 
+// Update the balls' positions and reset them when they go off-screen
 void update_balls() {
-    float delta_time = (SDL_GetTicks() - last_frame_time) / 1000.0f; // delta time is used to think in pixels per second and not pixels per frame
-    last_frame_time = SDL_GetTicks(); // this function let us know how many milliseconds have passed since the start of our SDL initialization in SDL_INIT
-    int time_to_sleep = FRAME_TARGET_TIME - (SDL_GetTicks() - last_frame_time);
+    float delta_time = (SDL_GetTicks() - last_frame_time) / 1000.0f;
+    last_frame_time = SDL_GetTicks();
 
-    if (time_to_sleep > 0 && time_to_sleep <= FRAME_TARGET_TIME) {
-        SDL_Delay(time_to_sleep); // call only if we are too fast to process this frame, it would let the processor do what it has to do and call for its interruption to resume the execution
-    }
+    int window_width, window_height;
+    SDL_GetWindowSize(window, &window_width, &window_height);
 
     for (int i = 0; i < ball_count; i++) {
-        // Update velocity with acceleration
-        //balls[i].vx += balls[i].ax * delta_time;
-        //balls[i].vy += balls[i].ay * delta_time;
-
         // Update position with velocity
-        //balls[i].x += 70 * delta_time;
-        balls[i].y += 30 * delta_time;
+        balls[i].y += balls[i].vy * delta_time;
 
-        // Ensure the ball stays within the window bounds
-        int window_width, window_height;
-        SDL_GetWindowSize(window, &window_width, &window_height);
-        //if (balls[i].x < 0) balls[i].x = 0;
-        //if (balls[i].x > window_width - balls[i].width) balls[i].x = window_width - balls[i].width;
-        if (balls[i].y < 0) balls[i].y = 0;
-        if (balls[i].y > window_height - balls[i].height) balls[i].y = window_height - balls[i].height;
-
-        // Apply damping to velocity to smooth the movement
-        //balls[i].vx *= 0.99;
-        balls[i].vy *= 0.99;
+        // If the ball goes off the bottom of the screen, reset it to the top with a random x position
+        if (balls[i].y > window_height) {
+            balls[i].y = -balls[i].height;  // Reset to just above the screen
+            balls[i].x = rand() % window_width; // Random x position
+            balls[i].vy = 50 + rand() % 100;    // Randomize the falling speed again
+            balls[i].alpha = 130 + rand() % 126; // Randomize transparency
+        }
     }
 }
 
+void render_balls(SDL_Renderer* renderer) {
+    for (int i = 0; i < ball_count; i++) {
+        SDL_SetRenderDrawColor(renderer, 224, 217, 246, balls[i].alpha); // Set white color
+        SDL_Rect ball_rect = {
+            (int)balls[i].x,
+            (int)balls[i].y,
+            (int)balls[i].width,
+            (int)balls[i].height
+        };
+        SDL_RenderFillRect(renderer, &ball_rect);
+    }
+}
 // Define colors
 SDL_Color white = {255, 255, 255, 255};
 SDL_Color buttonColor = {70, 70, 70, 255};
@@ -109,8 +205,8 @@ SDL_Texture* createButtonTexture(TTF_Font* font, const char* text, SDL_Color col
 // Load the menu textures (called once when transitioning to the main menu)
 void loadMenuTextures() {
     // Load fonts for title and buttons
-    menuFont = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 72);
-    buttonFont = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 36);
+    menuFont = TTF_OpenFont("assets/NType82.ttf", 72);
+    buttonFont = TTF_OpenFont("assets/Ndot-55.ttf", 36);
     if (!menuFont || !buttonFont) {
         printf("Error loading fonts: %s\n", TTF_GetError());
         return;
@@ -141,7 +237,7 @@ void renderMainMenu() {
     SDL_QueryTexture(titleTexture, NULL, NULL, &textWidth, &textHeight);
     SDL_Rect titleRect = {
         (windowWidth - textWidth) / 2,
-        200,
+        20,
         textWidth,
         textHeight
     };
@@ -212,7 +308,22 @@ int initialize_window(void) {
         SDL_Quit();
         return FALSE;
     }
+ if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError());
+        return FALSE;
+    }
 
+    // Load and play the music
+    music = Mix_LoadMUS("assets/watchdogs.mp3");
+    if (!music) {
+        printf("Failed to load music! SDL_mixer Error: %s\n", Mix_GetError());
+        return FALSE;
+    }
+
+    if (Mix_PlayMusic(music, -1) == -1) { // -1 means loop indefinitely
+        printf("Failed to play music! SDL_mixer Error: %s\n", Mix_GetError());
+        return FALSE;
+    }
     // Create SDL window in fullscreen mode
     window = SDL_CreateWindow(
         "Number Slide",
@@ -292,34 +403,26 @@ int initialize_window(void) {
     }
     startTextTexture = SDL_CreateTextureFromSurface(renderer, startTextSurface);
     SDL_FreeSurface(startTextSurface);
-
+if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+    printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError());
+    return FALSE;
+}
     // Initialize the balls
     setup_balls();
 
     return TRUE;
 }
 
+
 void render(Game* game) {
     // Enable blending
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
-    // Clear the screen with a semi-transparent purple color
-    SDL_SetRenderDrawColor(renderer, 164, 38, 232, 128);
-    SDL_RenderClear(renderer);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
+    SDL_RenderClear(renderer);    // Clear the screen with a semi-transparent purple color
+    renderVideoFrame(renderer);
 
     // Render the balls
-    for (int i = 0; i < ball_count; i++) {
-        SDL_Rect ball_rect = {
-            (int)balls[i].x,
-            (int)balls[i].y,
-            (int)balls[i].width,
-            (int)balls[i].height
-        };
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, balls[i].alpha);
-        SDL_RenderFillRect(renderer, &ball_rect);
-    }
-
-    // Get window size for centering the text
+    render_balls(renderer);    // Get window size for centering the text
     switch (currentState) {
         case WELCOME_PAGE: {
             int windowWidth, windowHeight;
@@ -370,16 +473,16 @@ void render(Game* game) {
 
     SDL_RenderPresent(renderer);
 }
-
 void renderGamePage(Game* game) {
     int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
-
+SDL_SetRenderDrawColor(renderer, 224, 217, 246, 255);
+SDL_RenderClear(renderer);
     // Update the game state
     update(game, 0.016);
 
     // Render the game grid
-    render_thegrid(renderer, window_width, window_height, game, false,0);
+    render_thegrid(renderer, window_width, window_height, game, false, 0);
 
     // Check if the player has lost and render the splash screen if necessary
     if (has_lost(game)) {
@@ -391,19 +494,20 @@ void renderGamePage(Game* game) {
         render_splash_screen(renderer, "You Have Won", bgColor);
         game->state = GS_WON;
     }
-SDL_Event event;
+
+    SDL_Event event;
     // Check if the game is won or lost
     if (game->state == GS_WON || game->state == GS_LOST) {
         // Poll for events to detect a space bar press
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) { // Detect space bar
-				      printf("so yeah basically the space ar is detected \n");
-                if (highScoreBoard.count < MAX_HIGH_SCORES || 
+                printf("Space bar is detected\n");
+                if (highScoreBoard.count < MAX_HIGH_SCORES ||
                     game->score > highScoreBoard.highScores[MAX_HIGH_SCORES - 1].score) {
                     // Call ask_for_player_name when space bar is pressed
                     char playerName[MAX_NAME_LENGTH];
                     ask_for_player_name(game, playerName);
-                    add_high_score(playerName, game->score);
+                    add_high_score(playerName, game);
                 }
 
                 // Transition to SCORE_PAGE after handling high score
@@ -415,15 +519,15 @@ SDL_Event event;
 }
 
 void renderMachinePage(Game* game) {
-  
- int window_width, window_height;
+    int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
-
+SDL_SetRenderDrawColor(renderer, 88, 106, 226, 255);
+SDL_RenderClear(renderer);
     // Update the game state
     Machine(game, 0.016);
 
     // Render the game grid
-    render_thegrid(renderer, window_width, window_height, game, true,0);
+    render_thegrid(renderer, window_width, window_height, game, true, 0);
 
     // Check if the player has lost and render the splash screen if necessary
     if (has_lost(game)) {
@@ -435,20 +539,18 @@ void renderMachinePage(Game* game) {
         render_splash_screen(renderer, "Won", bgColor);
         game->state = GS_WON;
     }
-              
 }
 
-
 void renderPlayerVSMachine(Game* game) {
-   
- int window_width, window_height;
+    int window_width, window_height;
     SDL_GetWindowSize(window, &window_width, &window_height);
 
     // Update the game state
     update(game, 0.016);
-int player_grid_offset_x=0;
+    int player_grid_offset_x = 0;
+
     // Render the game grid
-    render_thegrid(renderer, window_width/2, window_height, game, false, player_grid_offset_x);
+    render_thegrid(renderer, window_width / 2, window_height, game, false, player_grid_offset_x);
 
     // Check if the player has lost and render the splash screen if necessary
     if (has_lost(game)) {
@@ -460,22 +562,23 @@ int player_grid_offset_x=0;
         render_splash_screen(renderer, "You Have Won", bgColor);
         game->state = GS_WON;
     }
-int ai_grid_offset_x=window_width/2;
-	render_thegrid(renderer, window_width/2, window_height, game, true, ai_grid_offset_x);
 
-SDL_Event event;
+    int ai_grid_offset_x = window_width / 2;
+    render_thegrid(renderer, window_width / 2, window_height, game, true, ai_grid_offset_x);
+
+    SDL_Event event;
     // Check if the game is won or lost
     if (game->state == GS_WON || game->state == GS_LOST) {
         // Poll for events to detect a space bar press
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_SPACE) { // Detect space bar
-				      printf("so yeah basically the space ar is detected \n");
-                if (highScoreBoard.count < MAX_HIGH_SCORES || 
+                printf("Space bar is detected\n");
+                if (highScoreBoard.count < MAX_HIGH_SCORES ||
                     game->score > highScoreBoard.highScores[MAX_HIGH_SCORES - 1].score) {
                     // Call ask_for_player_name when space bar is pressed
                     char playerName[MAX_NAME_LENGTH];
                     ask_for_player_name(game, playerName);
-                    add_high_score(playerName, game->score);
+                    add_high_score(playerName, game);
                 }
 
                 // Transition to SCORE_PAGE after handling high score
@@ -485,8 +588,9 @@ SDL_Event event;
         }
     }
 }
+
 void renderScorePage() {
-    // Check renderer 	  PlayerVSMachine(game, 0.nd window
+    // Check renderer and window
     if (!renderer) {
         printf("Error: Renderer is NULL\n");
         return;
@@ -526,7 +630,7 @@ void renderScorePage() {
     }
 
     // Clear the screen with a background color
-    SDL_SetRenderDrawColor(renderer, 107, 107, 223, 255); // Your specified color
+    SDL_SetRenderDrawColor(renderer, 253, 29, 117, 255); // Your specified color
     SDL_RenderClear(renderer);
 
     // Get window dimensions for centering
@@ -552,7 +656,7 @@ void renderScorePage() {
     SDL_DestroyTexture(scoreTexture);
 
     // Render the high scores
-    int yOffset = 150;
+     int yOffset = 150;
     for (int i = 0; i < highScoreBoard.count; i++) {
         char scoreText[64];
         snprintf(scoreText, sizeof(scoreText), "%d. %s - %d", i + 1, highScoreBoard.highScores[i].name, highScoreBoard.highScores[i].score);
@@ -579,7 +683,6 @@ void renderScorePage() {
 
         yOffset += 50; // Space between scores
     }
-
     // Clean up font
     TTF_CloseFont(scoreFont);
 
