@@ -62,7 +62,7 @@ void initialize_game(Game* game);
 void initialize_gamePVM(Game* game);
 void render_score_and_moves(Game* game, SDL_Renderer* renderer);
 void render_splash_screen(SDL_Renderer* renderer, const char* text, SDL_Color color);
-void add_high_score(const char* name, int score);
+void add_high_score(const char* name, Game* game);
 void ask_for_player_name(Game* game, char* playerName);
 void initialize_gameM(Game* game);
 // AI move function
