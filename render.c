@@ -3,7 +3,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include "include/render.h"
-#include "include/cgame.h"
+#include "include/game.h"
 #include "include/input.h"
 #include <time.h>
 #include <SDL2/SDL_mixer.h>
