@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
-#include "include/cgame.h"
+#include "include/game.h"
 
 #define GRID_SIZE 4
 
