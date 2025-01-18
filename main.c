@@ -8,7 +8,7 @@
 #include <libswscale/swscale.h>
 #include "include/render.h"
 #include "include/input.h"
-#include "include/cgame.h"
+#include "include/game.h"
 #include <SDL2/SDL_mixer.h>
 #define FALSE 0
 #define TRUE 1
