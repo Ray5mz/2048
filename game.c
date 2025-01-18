@@ -2,7 +2,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <math.h> // Include the math header
-#include "include/cgame.h"
+#include "include/game.h"
 #include "include/utils.h"
 #include "include/input.h"
 
