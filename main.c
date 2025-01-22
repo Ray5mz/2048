@@ -8,7 +8,7 @@
 #include <libswscale/swscale.h>
 #include "include/render.h"
 #include "include/input.h"
-#include "include/game.h"
+#include "include/cgame.h"
 #include <SDL2/SDL_mixer.h>
 #define FALSE 0
 #define TRUE 1
@@ -37,9 +37,92 @@ int selectedButton = -1;
 bool isHovered;
 
 char *ply_name = NULL; // Initialize ply_name
-
+HighScoreBoard highScoreBoard = { .count = 0 };
 Game game; // Declare the game variable
-HighScoreBoard highScoreBoard = { .count = 0 }; // Initialize high score board
+void create_file_if_not_exists(const char* filename) {
+ 
+	FILE* file = fopen(filename, "a"); // Open in append mode to create the file if it doesn't exist
+    if (!file) {
+        printf("Error creating file: %s\n", strerror(errno));
+        return;
+    }
+    fclose(file);
+    printf("File %s created or already exists\n", filename);
+}
+
+void load_high_scores(const char* filename) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        printf("Error opening file for reading: %s\n", strerror(errno));
+        return;
+    }
+
+    highScoreBoard.count = 0;
+    while (highScoreBoard.count < MAX_HIGH_SCORES) {
+        if (fscanf(file, "%31s %d %d %d",
+                   highScoreBoard.highScores[highScoreBoard.count].name,
+                   &highScoreBoard.highScores[highScoreBoard.count].score,
+                   &highScoreBoard.highScores[highScoreBoard.count].time.mint,
+                   &highScoreBoard.highScores[highScoreBoard.count].time.scnd) == 4) {
+            highScoreBoard.count++;
+        } else {
+            break;
+        }
+    }
+
+    fclose(file);
+    printf("High scores loaded from %s\n", filename);
+}
+void replace_high_score(const char* name, Game* game, int index, const char* filename) {
+    if (index < 0 || index >= MAX_HIGH_SCORES) {
+        printf("Error: Invalid index %d for highScoreBoard\n", index);
+        return;
+    }
+
+    // Read all high scores into memory
+    HighScoreBoard tempBoard = { .count = 0 };
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        printf("Error opening file for reading: %s\n", strerror(errno));
+        return;
+    }
+
+    while (tempBoard.count < MAX_HIGH_SCORES) {
+        if (fscanf(file, "%31s %d %d %d",
+                   tempBoard.highScores[tempBoard.count].name,
+                   &tempBoard.highScores[tempBoard.count].score,
+                   &tempBoard.highScores[tempBoard.count].time.mint,
+                   &tempBoard.highScores[tempBoard.count].time.scnd) == 4) {
+            tempBoard.count++;
+        } else {
+            break;
+        }
+    }
+    fclose(file);
+
+    // Replace the score at the specified index
+    strcpy(tempBoard.highScores[index].name, name);
+    tempBoard.highScores[index].score = game->score;
+    tempBoard.highScores[index].time = game->time;
+
+    // Write all high scores back to the file
+    file = fopen(filename, "w");
+    if (!file) {
+        printf("Error opening file for writing: %s\n", strerror(errno));
+        return;
+    }
+
+    for (int i = 0; i < tempBoard.count; i++) {
+        fprintf(file, "%s %d %d %d\n",
+                tempBoard.highScores[i].name,
+                tempBoard.highScores[i].score,
+                tempBoard.highScores[i].time.mint,
+                tempBoard.highScores[i].time.scnd);
+    }
+
+    fclose(file);
+    printf("High score replaced at index %d\n", index);
+}
 
 void cleanup() {
     if (videoTexture) SDL_DestroyTexture(videoTexture);
@@ -88,6 +171,7 @@ void play_music(const char* filepath) {
     if (Mix_PlayMusic(music, -1) == -1) { // -1 means loop indefinitely
         printf("Failed to play music! SDL_mixer Error: %s\n", Mix_GetError());
     }
+Mix_VolumeMusic(10);
 }
 
 void cleanup_music() {
@@ -96,6 +180,10 @@ void cleanup_music() {
     Mix_CloseAudio(); // Close SDL_mixer
 }
 int main(int argc, char* argv[]) {
+    create_file_if_not_exists("score.txt");
+    load_high_scores("score.txt"); // Load high scores at startup
+
+    // Rest of your initialization code...
     game_is_running = initialize_window();
     if (!game_is_running) {
         cleanup(); // Ensure cleanup is called if initialization fails
