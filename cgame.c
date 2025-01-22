@@ -2,7 +2,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <math.h> // Include the math header
-#include "include/game.h"
+#include "include/cgame.h"
 #include "include/utils.h"
 #include "include/input.h"
 
@@ -89,25 +89,36 @@ void render_thegrid(SDL_Renderer* renderer, int grid_width, int grid_height, Gam
         }
     }
 }
-void render_score_and_moves(Game* game, SDL_Renderer* renderer)
-{
-    TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48);
-    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-    char text[32] = { 0 };
-    snprintf(text, 32, "Score: %d", game->score);
-    SDL_Surface* textSurface = TTF_RenderUTF8_Blended(font, text, (SDL_Color) { 0, 0, 0, 255 });
-    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-    SDL_RenderCopy(renderer, textTexture, NULL, &(SDL_Rect) { 50, 200, 400, 80 });
-    SDL_DestroyTexture(textTexture);
-    SDL_FreeSurface(textSurface);
 
-    snprintf(text, 32, "Moves: %d", game->moves);
-    textSurface = TTF_RenderUTF8_Blended(font, text, (SDL_Color) { 0, 0, 0, 0 });
-    textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-    SDL_RenderCopy(renderer, textTexture, NULL, &(SDL_Rect) { 50, 280, 400, 80 });
-    SDL_DestroyTexture(textTexture);
-    SDL_FreeSurface(textSurface);
+
+void rendtimer(Game* game){
+
+    Uint32 currentTime = SDL_GetTicks(); // Get current time in milliseconds
+    Uint32 deltaTime = currentTime - lastTime;
+
+    if (!game->moves) {
+        game->time.mint = 0; // Reset minutes
+        game->time.scnd = 0; // Reset seconds
+        lastTime = SDL_GetTicks();// Reset timing reference
+
+    }
+    if(has_lost(game) || has_won(game) ){
+            rect=game->time;
+            timertext(renderer, game);
+            return;
+    }
+    if (deltaTime > 1000) { // If 1 second has passed
+        game->time.scnd++; // Increment seconds
+        if (game->time.scnd >= 60) { // Reset seconds and increment minutes
+            game->time.scnd = 0;
+            game->time.mint++;
+        }
+        lastTime = currentTime; // Reset lastTime
+    }
+    timertext(renderer,game); // Render the timer
 }
+/////////////////////////////////////////////////////////
+
 void initialize_game(Game* game) {
     // Initialize the game state
     game->state = GS_PLAYING;
@@ -283,6 +294,7 @@ void Mmove_right(Game* game) {
         for (int ix = GRID_SIZE - 1; ix >= 0; ix--) {
             for (int jx = ix - 1; jx >= 0; jx--) {
                 if (move_cell_maybe_break(game, &game->ai_board[y * GRID_SIZE + ix], &game->ai_board[y * GRID_SIZE + jx])) {
+					          game->last_directions=DIR_RIGHT;
                     break;
                 }
             }
@@ -295,6 +307,7 @@ void Mmove_left(Game* game) {
         for (int ix = 0; ix < GRID_SIZE - 1; ix++) {
             for (int jx = ix + 1; jx < GRID_SIZE; jx++) {
                 if (move_cell_maybe_break(game, &game->ai_board[y * GRID_SIZE + ix], &game->ai_board[y * GRID_SIZE + jx])) {
+					          game->last_directions=DIR_LEFT;
                     break;
                 }
             }
@@ -307,6 +320,7 @@ void Mmove_down(Game* game) {
         for (int iy = GRID_SIZE - 1; iy >= 0; iy--) {
             for (int jy = iy - 1; jy >= 0; jy--) {
                 if (move_cell_maybe_break(game, &game->ai_board[iy * GRID_SIZE + x], &game->ai_board[jy * GRID_SIZE + x])) {
+					          game->last_directions=DIR_DOWN;
                     break;
                 }
             }
@@ -319,6 +333,7 @@ void Mmove_up(Game* game) {
         for (int iy = 0; iy < GRID_SIZE - 1; iy++) {
             for (int jy = iy + 1; jy < GRID_SIZE; jy++) {
                 if (move_cell_maybe_break(game, &game->ai_board[iy * GRID_SIZE + x], &game->ai_board[jy * GRID_SIZE + x])) {
+					          game->last_directions=DIR_UP;
                     break;
                 }
             }
@@ -442,8 +457,13 @@ ai_timer += delta;
             }
 
 } 
-void render_splash_screen(SDL_Renderer* renderer, const char* text, SDL_Color color)
-{
+
+
+
+
+
+
+void render_splash_screen(SDL_Renderer* renderer, int window_width, int window_height, const char* text, SDL_Color color, bool playerVmachine, int offsetx) {
     // Open the font with a larger size for smoother text
     TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 96);
     if (!font) {
@@ -459,49 +479,110 @@ void render_splash_screen(SDL_Renderer* renderer, const char* text, SDL_Color co
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
 
-    int rectWidth = 512;
-    int rectHeight = 512;
-    SDL_Rect rect = {
-        (screenWidth - rectWidth) / 2, // Center X
-        (screenHeight - rectHeight) / 2, // Center Y
-        rectWidth,
-        rectHeight
-    };
-    SDL_RenderFillRect(renderer, &rect);
+    if (playerVmachine) {
+        int rectWidth = 450;  // Width of the background rectangle
+        int rectHeight = 450; // Height of the background rectangle
 
-    // Render the text and center it
-    SDL_Surface* textSurface = TTF_RenderUTF8_Blended(font, text, (SDL_Color){ 0, 0, 0, 255 });
-    if (!textSurface) {
-        SDL_Log("Failed to render text: %s", TTF_GetError());
-        TTF_CloseFont(font);
-        return;
-    }
-    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
-    if (!textTexture) {
-        SDL_Log("Failed to create text texture: %s", SDL_GetError());
+        // Calculate the x position of the background rectangle
+        int rectX;
+        if (offsetx == 0) {
+            rectX = window_width / 12; // Position the background at the left edge of the screen
+        } else {
+            rectX = window_width / 2 + window_width / 12; // Position the background at the right edge of the screen
+        }
+
+        SDL_Rect rect = {
+            rectX, // x position (left edge if offsetx is 0, right edge otherwise)
+            (screenHeight - rectHeight) / 2, // y position (centered vertically)
+            rectWidth,
+            rectHeight
+        };
+        SDL_RenderFillRect(renderer, &rect);
+
+        // Render the text and center it
+        SDL_Surface* textSurface = TTF_RenderUTF8_Blended(font, text, (SDL_Color){0, 0, 0, 255});
+        if (!textSurface) {
+            SDL_Log("Failed to render text: %s", TTF_GetError());
+            TTF_CloseFont(font);
+            return;
+        }
+
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        if (!textTexture) {
+            SDL_Log("Failed to create text texture: %s", SDL_GetError());
+            SDL_FreeSurface(textSurface);
+            TTF_CloseFont(font);
+            return;
+        }
+
+        int textWidth = textSurface->w;
+        int textHeight = textSurface->h;
+        SDL_Rect textRect = {
+            rect.x + (rect.w - textWidth) / 2, // Center text horizontally within the rectangle
+            rect.y + (rect.h - textHeight) / 2, // Center text vertically within the rectangle
+            textWidth,
+            textHeight
+        };
+        SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+
+        // Clean up
+        SDL_DestroyTexture(textTexture);
         SDL_FreeSurface(textSurface);
-        TTF_CloseFont(font);
-        return;
+    } else {
+        int rectWidth = 512;  // Width of the background rectangle
+        int rectHeight = 512; // Height of the background rectangle
+        int rectX = (screenWidth - rectWidth) / 2; // Center the background horizontally
+
+        SDL_Rect rect = {
+            rectX, // x position (centered horizontally)
+            (screenHeight - rectHeight) / 2, // y position (centered vertically)
+            rectWidth,
+            rectHeight
+        };
+        SDL_RenderFillRect(renderer, &rect);
+
+        // Render the text and center it
+        SDL_Surface* textSurface = TTF_RenderUTF8_Blended(font, text, (SDL_Color){0, 0, 0, 255});
+        if (!textSurface) {
+            SDL_Log("Failed to render text: %s", TTF_GetError());
+            TTF_CloseFont(font);
+            return;
+        }
+
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+        if (!textTexture) {
+            SDL_Log("Failed to create text texture: %s", SDL_GetError());
+            SDL_FreeSurface(textSurface);
+            TTF_CloseFont(font);
+            return;
+        }
+
+        int textWidth = textSurface->w;
+        int textHeight = textSurface->h;
+        SDL_Rect textRect = {
+            rect.x + (rect.w - textWidth) / 2, // Center text horizontally within the rectangle
+            rect.y + (rect.h - textHeight) / 2, // Center text vertically within the rectangle
+            textWidth,
+            textHeight
+        };
+        SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+
+        // Clean up
+        SDL_DestroyTexture(textTexture);
+        SDL_FreeSurface(textSurface);
     }
 
-    // Center the text inside the rectangle
-    int textWidth = textSurface->w;
-    int textHeight = textSurface->h;
-    SDL_Rect textRect = {
-        rect.x + (rect.w - textWidth) / 2, // Center X
-        rect.y + (rect.h - textHeight) / 2, // Center Y
-        textWidth,
-        textHeight
-    };
-    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
-
-    // Clean up
-    SDL_DestroyTexture(textTexture);
-    SDL_FreeSurface(textSurface);
     TTF_CloseFont(font);
 }
 
+
+
 void ask_for_player_name(Game* game, char* playerName) {
+    printf("ask_for_player_name called\n");
+
+    // Reset the playerName variable to ensure it's empty
+    memset(playerName, 0, MAX_NAME_LENGTH);
+
     SDL_StartTextInput();
 
     char input[MAX_NAME_LENGTH] = "";
@@ -527,31 +608,29 @@ void ask_for_player_name(Game* game, char* playerName) {
     SDL_Color textColor = {255, 255, 255, 255};    // White
 
     while (!done) {
+        // Handle events
         while (SDL_PollEvent(&e)) {
             if (e.type == SDL_QUIT) {
                 done = true;
                 break;
-            } else if (e.type == SDL_TEXTINPUT || e.type == SDL_KEYDOWN) {
-                if (e.type == SDL_TEXTINPUT) {
-                    if (strlen(input) < MAX_NAME_LENGTH - 1) {
-                        strncat(input, e.text.text, MAX_NAME_LENGTH - strlen(input) - 1);
-                    }
-                } else if (e.key.keysym.sym == SDLK_BACKSPACE && strlen(input) > 0) {
+            } else if (e.type == SDL_TEXTINPUT) {
+                if (strlen(input) < MAX_NAME_LENGTH - 1) {
+                    strncat(input, e.text.text, MAX_NAME_LENGTH - strlen(input) - 1);
+                    printf("Input updated: %s\n", input);
+                }
+            } else if (e.type == SDL_KEYDOWN) {
+                if (e.key.keysym.sym == SDLK_BACKSPACE && strlen(input) > 0) {
                     input[strlen(input) - 1] = '\0';
+                    printf("Backspace pressed. Input: %s\n", input);
                 } else if (e.key.keysym.sym == SDLK_RETURN && strlen(input) > 0) {
                     done = true;
+                    printf("Enter pressed. Final input: %s\n", input);
                 }
             }
         }
 
-        // Clear the screen (but keep the existing background)
-        // SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Black background
-        // SDL_RenderClear(renderer);
-
-        // Render the existing background (assuming it's already rendered)
-        // For example, if you're on the game page, the grid is already rendered.
-
-        // Render input box background
+        // Clear the screen
+          // Render the input box
         SDL_SetRenderDrawColor(renderer, backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a);
         SDL_RenderFillRect(renderer, &inputBox);
 
@@ -570,7 +649,22 @@ void ask_for_player_name(Game* game, char* playerName) {
 
         // Render title "Name:"
         SDL_Surface* titleSurface = TTF_RenderUTF8_Blended(fontTitle, "Name:", textColor);
+        if (!titleSurface) {
+            printf("Error creating title surface: %s\n", TTF_GetError());
+            TTF_CloseFont(fontTitle);
+            TTF_CloseFont(fontInput);
+            SDL_StopTextInput();
+            return;
+        }
         SDL_Texture* titleTexture = SDL_CreateTextureFromSurface(renderer, titleSurface);
+        if (!titleTexture) {
+            printf("Error creating title texture: %s\n", SDL_GetError());
+            SDL_FreeSurface(titleSurface);
+            TTF_CloseFont(fontTitle);
+            TTF_CloseFont(fontInput);
+            SDL_StopTextInput();
+            return;
+        }
         SDL_Rect titleRect = {
             inputBox.x + 20,  // Slightly left of input box
             inputBox.y + 20,  // Slightly above input box
@@ -581,18 +675,28 @@ void ask_for_player_name(Game* game, char* playerName) {
         SDL_FreeSurface(titleSurface);
         SDL_DestroyTexture(titleTexture);
 
-        // Render the input text
-        SDL_Surface* inputSurface = TTF_RenderUTF8_Blended(fontInput, input, textColor);
-        SDL_Texture* inputTexture = SDL_CreateTextureFromSurface(renderer, inputSurface);
-        SDL_Rect inputRect = {
-            inputBox.x + 20,  // Left padding
-            inputBox.y + 80,  // Centered vertically in the box
-            inputSurface->w,
-            inputSurface->h
-        };
-        SDL_RenderCopy(renderer, inputTexture, NULL, &inputRect);
-        SDL_FreeSurface(inputSurface);
-        SDL_DestroyTexture(inputTexture);
+        // Render the input text (only if input is not empty)
+        if (strlen(input) > 0) {
+            SDL_Surface* inputSurface = TTF_RenderUTF8_Blended(fontInput, input, textColor);
+            if (!inputSurface) {
+                printf("Error creating input surface: %s\n", TTF_GetError());
+            } else {
+                SDL_Texture* inputTexture = SDL_CreateTextureFromSurface(renderer, inputSurface);
+                if (!inputTexture) {
+                    printf("Error creating input texture: %s\n", SDL_GetError());
+                } else {
+                    SDL_Rect inputRect = {
+                        inputBox.x + 20,  // Left padding
+                        inputBox.y + 80,  // Centered vertically in the box
+                        inputSurface->w,
+                        inputSurface->h
+                    };
+                    SDL_RenderCopy(renderer, inputTexture, NULL, &inputRect);
+                    SDL_DestroyTexture(inputTexture);
+                }
+                SDL_FreeSurface(inputSurface);
+            }
+        }
 
         // Clean up fonts
         TTF_CloseFont(fontTitle);
@@ -603,50 +707,37 @@ void ask_for_player_name(Game* game, char* playerName) {
     }
 
     SDL_StopTextInput();
-    strcpy(playerName, input);
+    strcpy(playerName, input); // Copy the input to the playerName variable
+    printf("Player name set to: %s\n", playerName);
 }
-void add_high_score(const char* name, Game* game) {
 
-    if (highScoreBoard.count < MAX_HIGH_SCORES) {
-        // Add new score if there's space
-        strcpy(highScoreBoard.highScores[highScoreBoard.count].name, name);
-        highScoreBoard.highScores[highScoreBoard.count].score = game->score; // Ensure this is correct
-        highScoreBoard.count++;
-    } else {
-        // Replace the lowest score if the new score is higher
-        int minIndex = 0;
-        for (int i = 1; i < MAX_HIGH_SCORES; i++) {
-            if (highScoreBoard.highScores[i].score < highScoreBoard.highScores[minIndex].score) {
-                minIndex = i;
-            }
-        }
 
-        if (game->score > highScoreBoard.highScores[minIndex].score) {
-            strcpy(highScoreBoard.highScores[minIndex].name, name);
-            highScoreBoard.highScores[minIndex].score = game->score; // Ensure this is correct
-        }
+
+void add_high_score(const char* name, Game* game, int i, const char* filename) {
+    if (i < 0 || i >= MAX_HIGH_SCORES) {
+        printf("Error: Invalid index %d for highScoreBoard\n", i);
+        return;
     }
 
-    // Sort high scores in descending order
-    for (int i = 0; i < highScoreBoard.count - 1; i++) {
-        for (int j = i + 1; j < highScoreBoard.count; j++) {
-            if (highScoreBoard.highScores[j].score > highScoreBoard.highScores[i].score) {
-                HighScore temp = highScoreBoard.highScores[i];
-                highScoreBoard.highScores[i] = highScoreBoard.highScores[j];
-                highScoreBoard.highScores[j] = temp;
-            }
-        }
-  }
-printf("Adding high score: Name = %s, Score = %d\n", name, game->score);
-}
-void init_grille_vs_machine(Game* game) {
-    for (int i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
-        game->board[i] = 0;
-        game->ai_board[i] = 0;
+    // If there's space, add the new score
+    strcpy(highScoreBoard.highScores[i].name, name);
+    highScoreBoard.highScores[i].score = game->score;
+    highScoreBoard.highScores[i].time = game->time;
+    printf("Adding high score for %s with score %d in %d\n", name, game->score, i);
+
+    // Save the high score to the file
+    FILE* file = fopen(filename, "a"); // Open in append mode
+    if (!file) {
+        printf("Error opening file for writing: %s\n", strerror(errno));
+        return;
     }
 
-    add_random_tile(game);
-    add_random_tile(game);
-    add_random_tileM(game); // Add initial tiles for AI
-    add_random_tileM(game);
+    fprintf(file, "%s %d %d %d\n",
+            highScoreBoard.highScores[i].name,
+            highScoreBoard.highScores[i].score,
+            highScoreBoard.highScores[i].time.mint,
+            highScoreBoard.highScores[i].time.scnd);
+
+    fclose(file);
+    printf("High score saved to %s\n", filename);
 }
