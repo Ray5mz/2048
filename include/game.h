@@ -10,10 +10,21 @@
 #define GAP 10
 #define MAX_HIGH_SCORES 5
 #define MAX_NAME_LENGTH 32
+typedef enum {
+    DIR_NONE, // No direction
+    DIR_UP,   // Up direction
+    DIR_DOWN, // Down direction
+    DIR_LEFT, // Left direction
+    DIR_RIGHT // Right direction
+} Direction;
 
+typedef struct {
+    int scnd, mint;
+} Time;
 typedef struct {
     char name[MAX_NAME_LENGTH];
     int score;
+Time time;
 } HighScore;
 
 typedef struct {
@@ -23,6 +34,8 @@ typedef struct {
 
 extern HighScoreBoard highScoreBoard;
 
+static Time t,rect = {0, 0};
+static Uint32 lastTime = 0;
 typedef enum {
     A_NONE,
     A_MOVE_RIGHT,
@@ -46,7 +59,11 @@ typedef struct {
     int score, Mscore, moves, Mmoves;
     int last_inserted, Mlast_inserted;
     bool has_moved, Mhas_moved;
+		Time time;
+		Direction last_directions;
 } Game;
+void rendtimer(Game* game);
+extern void create_file_if_not_exists(const char* filename);
 
 bool has_won(Game* game);
 bool has_lost(Game* game);
@@ -61,8 +78,8 @@ void render_thegrid(SDL_Renderer* renderer, int window_width, int window_height,
 void initialize_game(Game* game);
 void initialize_gamePVM(Game* game);
 void render_score_and_moves(Game* game, SDL_Renderer* renderer);
-void render_splash_screen(SDL_Renderer* renderer, const char* text, SDL_Color color);
-void add_high_score(const char* name, Game* game);
+void render_splash_screen(SDL_Renderer* renderer, int window_width, int window_height, const char* text, SDL_Color color, bool playerVmachine, int offsetx);
+void add_high_score(const char* name, Game* game, int i, const char* filename);
 void ask_for_player_name(Game* game, char* playerName);
 void initialize_gameM(Game* game);
 // AI move function
