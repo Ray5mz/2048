@@ -4,7 +4,7 @@
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
-#include "game.h"
+#include "cgame.h"
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
@@ -44,6 +44,9 @@ extern SDL_Texture* startTextTexture;
 extern int game_is_running;
 extern bool isHovered;
 
+void play_music(const char* filepath);
+void replace_high_score(const char* name, Game* game, int index, const char* filename);
+void load_high_scores(const char* filename);
 void initialize_game(Game* game);
 void render_grid(SDL_Renderer* renderer, int window_width, int window_height, Game* game);
 void transition_to_main_menu();
@@ -56,19 +59,11 @@ void renderGamePage(Game* game);
 void renderPlayerVSMachine(Game* game);
 void renderMachinePage(Game* game);
 void renderScorePage();
-
 int initialize_window(void);
 void render(Game* game);
-void transition_to_main_menu();
-void welcome_page();
-void loadMenuTextures();
-void renderMainMenu();
-void cleanupMenuTextures();
-void renderMachinePage(Game* game);
-void renderScorePage();
 void setup_balls();
 void update_balls();
 bool loadVideo(const char* filepath, SDL_Renderer* renderer);
 void renderVideoFrame(SDL_Renderer* renderer);
-
+void timertext(SDL_Renderer* renderer, Game* game);
 #endif
