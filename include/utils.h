@@ -2,7 +2,7 @@
 #define UTILS_H
 
 #include <SDL2/SDL.h>
-#include "game.h"
+#include "cgame.h"
 #include "render.h"
 #define GRID_SIZE 4
 extern HighScoreBoard highScoreBoard;
