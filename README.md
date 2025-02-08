@@ -1,5 +1,5 @@
 # 2048
-group project for DSA class 
+A group project for DSA class.
 
 A 2048 game implementation using SDL2 in C. This project involves creating a simple version of the classic 2048 game, where players slide tiles on a grid to combine them into a tile of 2048.
 
