@@ -33,10 +33,10 @@ typedef struct {
 } HighScoreBoard;
 
 extern HighScoreBoard highScoreBoard;
-
+extern bool resume;
 static Time t,rect = {0, 0};
-static Uint32 lastTime = 0;
-typedef enum {
+ static Uint32 lastTime = 0;
+ typedef enum {
     A_NONE,
     A_MOVE_RIGHT,
     A_MOVE_LEFT,
@@ -49,7 +49,7 @@ typedef enum {
     GS_LOST,
     GS_WON,
 		GS_NOTPLAYING,
-} GameStates;
+    } GameStates;
 
 typedef struct {
     int board[GRID_SIZE * GRID_SIZE];
@@ -64,7 +64,7 @@ typedef struct {
 } Game;
 void rendtimer(Game* game);
 extern void create_file_if_not_exists(const char* filename);
-
+void render_pause_screen(SDL_Renderer* renderer); 
 bool has_won(Game* game);
 bool has_lost(Game* game);
 int empty_tiles(Game* game);
