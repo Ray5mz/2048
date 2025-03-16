@@ -9,7 +9,7 @@
 #include "include/render.h"
 #include "include/input.h"
 #include "include/cgame.h"
-#include <SDL2/SDL_mixer.h>
+#include <SDL2/SDL_image.h>
 #define FALSE 0
 #define TRUE 1
 Mix_Music* music = NULL; // Global music object
@@ -22,7 +22,7 @@ AVPacket* packet = NULL;
 struct SwsContext* swsContext = NULL;
 SDL_Texture* videoTexture = NULL;
 int videoStreamIndex = -1;
-
+bool resume;
 int game_is_running;
 GameState currentState = WELCOME_PAGE;
 SDL_Window* window = NULL;
@@ -180,44 +180,65 @@ void cleanup_music() {
     Mix_CloseAudio(); // Close SDL_mixer
 }
 int main(int argc, char* argv[]) {
+    // Create the score file if it doesn't exist
     create_file_if_not_exists("score.txt");
-    load_high_scores("score.txt"); // Load high scores at startup
 
-    // Rest of your initialization code...
+    // Load high scores at startup
+    load_high_scores("score.txt");
+
+    // Initialize the game window
     game_is_running = initialize_window();
     if (!game_is_running) {
         cleanup(); // Ensure cleanup is called if initialization fails
         return -1;
     }
 
-    const char* videoPath = "assets/cyberpunk.mp4";
-    if (!loadVideo(videoPath, renderer)) {
-        printf("Failed to load video\n");
-        cleanup();
+    // Load the background image
+    SDL_Texture* background_texture = load_background_image(renderer, "assets/background.png");
+    if (!background_texture) {
+        printf("Failed to load background image!\n");
+        cleanup(); // Clean up resources before exiting
         return -1;
     }
 
+    // Initialize the game state
+    Game game;
+    initialize_game(&game); // Initialize the game
+
     // Main loop
     while (game_is_running) {
-        process_input(&game); // Pass the game variable
-        render(&game); // Pass the game variable
-		    if (currentState == WELCOME_PAGE){
-            update_balls();
-            			      
-        } else if (currentState == GAME_PAGE) {
-            update(&game, 0.016); // Update the game state
-        } else if (currentState == PLAYERVSMACHINE_PAGE) {
-            PlayerVSMachine(&game, 0.016); // Update the game state for Player vs Machine
-			      update_balls();
-        } else if (currentState == MACHINE_PAGE){
-            Machine(&game, 0.016);
-			      update_balls();
+        process_input(&game); // Handle input
+        render(&game, background_texture); // Render the game with the background texture
+
+        // Update game state based on the current state
+        switch (currentState) {
+            case WELCOME_PAGE:
+                update_balls();
+                break;
+
+            case GAME_PAGE:
+                update(&game, 0.016); // Update the game state
+                break;
+
+            case PLAYERVSMACHINE_PAGE:
+                PlayerVSMachine(&game, 0.016); // Update the game state for Player vs Machine
+                update_balls();
+                break;
+
+            case MACHINE_PAGE:
+                Machine(&game, 0.016); // Update the game state for Machine
+                update_balls();
+                break;
+
+            default:
+                break;
         }
 
         SDL_Delay(16); // Delay to limit CPU usage (~60 frames per second)
     }
 
     // Clean up resources
-    cleanup();
+    SDL_DestroyTexture(background_texture); // Free the background texture
+    cleanup(); // Clean up other resources
     return 0;
 }
