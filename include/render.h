@@ -13,14 +13,14 @@
 #define MAX_NAME_LEN 20
 #define FALSE 0
 #define TRUE 1
-
 typedef enum {
     WELCOME_PAGE,
     MAIN_MENU,
     MACHINE_PAGE,
     SCORE_PAGE,
     GAME_PAGE,
-    PLAYERVSMACHINE_PAGE
+    PLAYERVSMACHINE_PAGE,
+		GAME_PAUSED,
 } GameState;
 extern void play_music(const char* filepath);
 extern AVFormatContext* formatContext;
@@ -43,7 +43,9 @@ extern SDL_Window* window;
 extern SDL_Texture* startTextTexture;
 extern int game_is_running;
 extern bool isHovered;
-
+extern bool resume;
+void load_game_state(Game* game);
+SDL_Texture* load_background_image(SDL_Renderer* renderer, const char* filepath); 
 void play_music(const char* filepath);
 void replace_high_score(const char* name, Game* game, int index, const char* filename);
 void load_high_scores(const char* filename);
@@ -60,7 +62,7 @@ void renderPlayerVSMachine(Game* game);
 void renderMachinePage(Game* game);
 void renderScorePage();
 int initialize_window(void);
-void render(Game* game);
+void render(Game* game, SDL_Texture* background_texture);
 void setup_balls();
 void update_balls();
 bool loadVideo(const char* filepath, SDL_Renderer* renderer);
