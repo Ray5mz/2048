@@ -21,9 +21,7 @@ void return_back(Game* game) {
         loadMenuTextures(); // Load menu textures when transitioning to the main menu
          game->state = GS_PLAYING;
          game->action = A_NONE;
-		    memset(game->board, 0,sizeof(game->board));
-        memset(game->ai_board, 0,sizeof(game->ai_board));
-		    
+		   		    
     }
 }
 
@@ -32,7 +30,31 @@ void process_input(Game* game) {
 
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
-            game_is_running = FALSE; // Stop the game loop
+              if (game->state!=GS_LOST && game->state != GS_WON){
+								                       create_file_if_not_exists("save.txt"); 
+									                    printf("created sucessfully!\n");
+									                    FILE* file = fopen("save.txt", "w");
+                                      if (file == NULL) {
+                                           printf("Error: Unable to open save.txt for writing.\n");
+                                           return; // Exit the function or handle the error appropriately
+                                       }
+
+                                     // Save the game board to the file
+                                       for (int i = 0; i < GRID_SIZE; i++) { // Assuming BOARD_SIZE is the size of the board
+                                         for (int j = 0; j < GRID_SIZE; j++) {
+                                             fprintf(file, "%d ", game->board[i*GRID_SIZE+j]); // Save each element of the board
+						                                    printf("%d ", game->board[i*GRID_SIZE+j]);
+                                          }
+                                          fprintf(file, "\n"); // Add a newline after each row
+					                                 printf("\n");
+                                       } 
+				                                    fprintf(file, "%d, %d, %d", game->score, game->time.mint, game->time.scnd);
+
+                                       // Close the file
+                                       fclose(file);
+                                   printf("game been saved"); 
+                  }
+			       game_is_running = FALSE; // Stop the game loop
         } else if (event.type == SDL_KEYDOWN) {
             if (currentState == WELCOME_PAGE) {
                 // Any key press transitions to the main menu
@@ -54,19 +76,50 @@ void process_input(Game* game) {
                     case SDLK_RETURN: // Enter key
                         printf("Button %d selected!\n", selectedButton);
                         switch (selectedButton) {
-                            case 0: currentState = GAME_PAGE; break;
+                            case 0:
+								                 if ( resume == true){
+								                  load_game_state(game);
+									                }
+								                  currentState = GAME_PAGE; 
+								                   break;
                             case 1: currentState = MACHINE_PAGE; break;
                             case 2: currentState = PLAYERVSMACHINE_PAGE; break;
                             case 3: currentState = SCORE_PAGE; break;
-                            case 4: game_is_running = FALSE; break;
+                            case 4: 
+			                              if (game->state!=GS_LOST && game->state != GS_WON){
+								                       create_file_if_not_exists("save.txt"); 
+									                    printf("created sucessfully!");
+									                    FILE* file = fopen("save.txt", "w");
+                                      if (file == NULL) {
+                                           printf("Error: Unable to open save.txt for writing.\n");
+                                           return; // Exit the function or handle the error appropriately
+                                       }
+
+                                     // Save the game board to the file
+                                       for (int i = 0; i < GRID_SIZE; i++) { // Assuming BOARD_SIZE is the size of the board
+                                         for (int j = 0; j < GRID_SIZE; j++) {
+                                             fprintf(file, "%d ", game->board[i*j]); // Save each element of the board
+                                          }
+                                          fprintf(file, "\n"); // Add a newline after each row
+                                       }
+
+                                       // Close the file
+                                       fclose(file);
+                                   printf("game been saved");
+								                    }
+								                     game_is_running = FALSE;
+								             
+								        break;
+
+							
                         }
                         break;
                     case SDLK_ESCAPE:
                         return_back(game);
                         break;
                 }
-				    } else if (currentState == GAME_PAGE || currentState== PLAYERVSMACHINE_PAGE ){
-                  switch (event.key.keysym.sym) {
+            } else if (currentState == GAME_PAGE || currentState == PLAYERVSMACHINE_PAGE) {
+                switch (event.key.keysym.sym) {
                     case SDLK_RIGHT:
                         game->action = A_MOVE_RIGHT;
                         break;
@@ -82,27 +135,35 @@ void process_input(Game* game) {
                     case SDLK_ESCAPE:
                         return_back(game);
                         break;
-                }            
-			} else if (currentState == MACHINE_PAGE || currentState == PLAYERVSMACHINE_PAGE){
-			   int direction = rand()%4;
-				 switch (direction){
-              case 0:
-					       game->Maction = A_MOVE_RIGHT;
-					       break;
-						 case 1:
-					       game->Maction = A_MOVE_LEFT;
-					       break;
-					   case 2:
-					       game->Maction = A_MOVE_DOWN;
-					       break;
-					   case 3:
-					       game->Maction= A_MOVE_UP;
-					
-
-				 }
-				   if(event.key.keysym.sym==SDLK_ESCAPE){
-				    return_back(game); 
-				}
+                    case SDLK_p: // Pause the game
+                        if (currentState == GAME_PAGE || currentState == PLAYERVSMACHINE_PAGE) {
+                            currentState = GAME_PAUSED;
+                        }
+                        break;
+                }
+            } else if (currentState == MACHINE_PAGE || currentState == PLAYERVSMACHINE_PAGE) {
+                int direction = rand() % 4;
+                switch (direction) {
+                    case 0:
+                        game->Maction = A_MOVE_RIGHT;
+                        break;
+                    case 1:
+                        game->Maction = A_MOVE_LEFT;
+                        break;
+                    case 2:
+                        game->Maction = A_MOVE_DOWN;
+                        break;
+                    case 3:
+                        game->Maction = A_MOVE_UP;
+                        break;
+                }
+                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    return_back(game);
+                }
+            } else if (currentState == GAME_PAUSED) {
+                if (event.key.keysym.sym == SDLK_p) { // Unpause the game
+                    currentState = GAME_PAGE;
+                }
             } else {
                 // Handle ESC key to return to the main menu
                 if (event.key.keysym.sym == SDLK_ESCAPE) {
@@ -119,31 +180,43 @@ void process_input(Game* game) {
                     loadMenuTextures(); // Load menu textures when transitioning to the main menu
                     break;
                 case MAIN_MENU:
-                    handleMainMenuEvent(&event); // New function for the main menu
+                    handleMainMenuEvent(&event, game); // New function for the main menu
                     break;
                 case GAME_PAGE:
-					          initialize_game(game); // Initialize the game when transitioning to the game page
-                    handleGamePageEvent(game); // Use the game variabl 
-                      break;
+FILE* file = fopen("save.txt", "r");
+ if(resume == true && file!=NULL){
+					         
+					          load_game_state(game);
+					}else{
+                    initialize_game(game);// Initialize the game when transitioning to the game page
+					}
+                    handleGamePageEvent(game);
+                    memset(game->ai_board, 0, sizeof(game->ai_board));
+                    break;
                 case SCORE_PAGE:
                     handleScorePageEvent(&event); // Placeholder for future
                     break;
                 case PLAYERVSMACHINE_PAGE:
+                    memset(game->board, 0, sizeof(game->board));
+                    memset(game->ai_board, 0, sizeof(game->ai_board));
                     initialize_game(game);
-		                handleGamePageEvent(game); 	
-                   initialize_gameM(game); 
-                   ai_move(game);   
+                    handleGamePageEvent(game);
+                    initialize_gameM(game);
+                    ai_move(game);
                     break;
                 case MACHINE_PAGE:
-					       initialize_gameM(game); 
-                   ai_move(game);  // Placeholder for future
+                    initialize_gameM(game);
+                    ai_move(game);  // Placeholder for future
+                    memset(game->board, 0, sizeof(game->board));
+                    break;
+                case GAME_PAUSED:
+                    // Handle mouse events while paused (if needed)
                     break;
             }
         }
     }
 }
-
-void handleMainMenuEvent(SDL_Event* event) {
+void handleMainMenuEvent(SDL_Event* event, Game* game) {
     if (event->type == SDL_MOUSEBUTTONDOWN && event->button.button == SDL_BUTTON_LEFT) {
         // Retrieve mouse position
         int mouseX = event->button.x;
@@ -174,11 +247,37 @@ void handleMainMenuEvent(SDL_Event* event) {
 
                 // Switch state or quit based on the button clicked
                 switch (i) {
-                    case 0: currentState = GAME_PAGE; break;   // Play button
+                    case 0: 
+						               if (resume==true){
+						               load_game_state(game);
+						             }
+						               currentState = GAME_PAGE; 
+						                 break;   // Play button
                     case 1: currentState = MACHINE_PAGE; break; // Machine button
                     case 2: currentState = PLAYERVSMACHINE_PAGE; break; // Player vs Machine button
                     case 3: currentState = SCORE_PAGE; break; // Score button
-                    case 4: game_is_running = FALSE; break;   // Quit button
+                    case 4: 
+if (game->state!=GS_LOST && game->state != GS_WON){
+								                       create_file_if_not_exists("save.txt"); 
+									                    printf("created sucessfully!");
+									                    FILE* file = fopen("save.txt", "w");
+                                      if (file == NULL) {
+                                           printf("Error: Unable to open save.txt for writing.\n");
+                                           return; // Exit the function or handle the error appropriately
+                                       }
+
+                                     // Save the game board to the file
+                                       for (int i = 0; i < GRID_SIZE-1; i++) { // Assuming BOARD_SIZE is the size of the board
+                                         for (int j = 0; j < GRID_SIZE-1; j++) {
+                                             fprintf(file, "%d ", game->board[i*j]); // Save each element of the board
+                                          }
+                                          fprintf(file, "\n"); // Add a newline after each row
+                                       }
+
+                                       // Close the file
+                                       fclose(file);
+                                   printf("game been saved");
+						                game_is_running = FALSE; break;   // Quit button
                 }
                 break; // Exit loop once the clicked button is handled
             }
@@ -186,7 +285,7 @@ void handleMainMenuEvent(SDL_Event* event) {
     }
 }
 
-
+}
 
 
 void handleGamePageEvent(Game* game) {
