@@ -10,7 +10,7 @@
 
 #define FALSE 0
 #define TRUE 1
-
+extern bool resume;
 extern int is_welcome_page;
 extern int game_is_running;
 extern int mouseX;
@@ -22,7 +22,7 @@ extern char *ply_name;
 extern int score;
 extern HighScoreBoard highScoreBoard;
 void return_back(Game* game);
-void handleMainMenuEvent(SDL_Event* event);
+void handleMainMenuEvent(SDL_Event* event, Game* game);
 void handleGamePageEvent(Game* game);
 void handleScorePageEvent(SDL_Event* event);
 void handleMachinePageEvent(SDL_Event* event);
