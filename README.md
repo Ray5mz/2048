@@ -21,6 +21,15 @@ To install the dependencies on Linux (for example, Ubuntu), run:
 sudo apt-get install libsdl2-dev libsdl2-ttf-dev
 ```
 
+and for Arch linux based systems:
+```bash
+sudo pacman -S sdl2 sdl2_ttf sdl2_image sdl2_mixer
+```
+```bash
+sudo pacman -S ffmpeg
+```
+
+
 ## Directory Structure
 ```
 |-- assets/
