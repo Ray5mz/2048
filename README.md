@@ -75,4 +75,4 @@ gcc -g -o "NumberSlide.exe" main.c render.c input.c utils.c cgame.c -I include -
 ---
 
 ## Special Thanks:
-Thank you to @ayahbash for working and contrinuting with awesome ideas into this project
+Thank you to [@ayahbash](https://github.com/ayahbash) for working and contrinuting with awesome ideas into this project
