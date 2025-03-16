@@ -71,3 +71,8 @@ gcc -g -o "NumberSlide.exe" main.c render.c input.c utils.c cgame.c -I include -
 -  Arrow keys: Move tiles on the grid.
 -  Press 'Esc': Exit the game.
 -  when you exit without finsing your game, you will be asked if you want to resume your last game or start a new one in your next launch of the game
+
+---
+
+## Special Thanks:
+Thank you to @ayabas for working and contrinuting with awesome ideas into this project
