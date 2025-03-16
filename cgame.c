@@ -1,7 +1,9 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdbool.h>
 #include <math.h> // Include the math header
+#include <stdio.h>
 #include "include/cgame.h"
 #include "include/utils.h"
 #include "include/input.h"
@@ -50,7 +52,7 @@ void render_thegrid(SDL_Renderer* renderer, int grid_width, int grid_height, Gam
     // Render grid
     for (int y = 0; y < GRID_SIZE; y++) {
         for (int x = 0; x < GRID_SIZE; x++) {
-            int value = is_ai ? game->ai_board[y * GRID_SIZE + x] : game->board[y * GRID_SIZE + x];
+            int value = is_ai ? game->ai_board[y * GRID_SIZE + x] : game->board[y * GRID_SIZE + x]; //if is_ai is true alors value is assigned with the ai_baord, else it would just be assigned with th enormal board
             int tile_x = start_x + x * (tile_size + gap);
             int tile_y = start_y + y * (tile_size + gap);
             SDL_Rect tile_rect = {tile_x, tile_y, tile_size, tile_size};
@@ -60,7 +62,7 @@ void render_thegrid(SDL_Renderer* renderer, int grid_width, int grid_height, Gam
             
             // Render value text if tile is not empty
             if (value > 0) {
-                TTF_Font* font = TTF_OpenFont("assets/LilitaOne-Regular.ttf", 48);
+                TTF_Font* font = TTF_OpenFont("assets/arcade.ttf", 65);
                 if (font) {
                     char value_str[10];
                     snprintf(value_str, sizeof(value_str), "%d", value);
@@ -91,18 +93,16 @@ void render_thegrid(SDL_Renderer* renderer, int grid_width, int grid_height, Gam
 }
 
 
+
+
+
+
 void rendtimer(Game* game){
 
     Uint32 currentTime = SDL_GetTicks(); // Get current time in milliseconds
     Uint32 deltaTime = currentTime - lastTime;
 
-    if (!game->moves) {
-        game->time.mint = 0; // Reset minutes
-        game->time.scnd = 0; // Reset seconds
-        lastTime = SDL_GetTicks();// Reset timing reference
-
-    }
-    if(has_lost(game) || has_won(game) ){
+        if(has_lost(game) || has_won(game) ){
             rect=game->time;
             timertext(renderer, game);
             return;
@@ -118,6 +118,7 @@ void rendtimer(Game* game){
     timertext(renderer,game); // Render the timer
 }
 /////////////////////////////////////////////////////////
+
 
 void initialize_game(Game* game) {
     // Initialize the game state
