@@ -49,7 +49,16 @@ sudo apt-get install libsdl2-dev libsdl2-ttf-dev
 |-- README.md                  # Project documentation
 ```
 
+## Installation and Compilation
+After installing files, we can complie and make the executable file of the game(noting that the Directory structure need to be respected in order to be abke to compile)
+
+we can do this by typing the following command:
+```shell
+gcc -g -o "NumberSlide.exe" main.c render.c input.c utils.c cgame.c -I include -lSDL2 -lSDL2_ttf -lSDL2_image -lSDL2_mixer -lavcodec -lavformat -lavutil -lswscale -lm
+```
+
+
 ## How to Play
 -  Arrow keys: Move tiles on the grid.
--  Press 'R': Restart the game.
 -  Press 'Esc': Exit the game.
+-  when you exit without finsing your game, you will be asked if you want to resume your last game or start a new one in your next launch of the game
