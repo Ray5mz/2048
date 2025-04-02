@@ -10,6 +10,13 @@ A 2048 game implementation using SDL2 in C. This project involves creating a sim
 - **Ranking System**: Keeps track of the best scores.
 - **Sound and Music**: Background music and sound effects.
 
+
+##Screenshot
+
+![Uploading image.png…]()
+
+
+
 ## Requirements
 - **SDL2**: Make sure SDL2 is installed on your system. Follow the instructions on the official SDL website to install it: [SDL2 Installation](https://wiki.libsdl.org/Installation).
 - **SDL2_ttf**: Required for rendering text. Install it similarly to SDL2.
