@@ -13,8 +13,17 @@ A 2048 game implementation using SDL2 in C. This project involves creating a sim
 
 ##Screenshot
 
-![Uploading image.png…]()
+![Alt text](Screenshots/Welcomepic.png)
 
+---
+
+![Alt text](Screenshots/play.png)
+
+
+---
+
+
+![Alt text](Screenshots/PlayerVSMACHINE.png)
 
 
 ## Requirements
